@@ -6,9 +6,9 @@
   others, making sure they are present and correct, passing them around is a
   constant cause of headache and bad code.
 
-  Configuration libraries, which there are plenty of, promise to solve the
-  configuration problems, and they partly do. However, they are usually too
-  simple and provide only the mapping of configuration sources to Clojure data,
+  Configuration libraries, which there are plenty of <TODO>, promise to solve
+  the configuration problems, and they partly do. However, they are usually too
+  simple, and provide only the mapping of configuration sources to Clojure data,
   without the verification part. Omniconf tries to deliver the complete
   solution, even at the cost of increased complexity.
 
@@ -17,8 +17,8 @@
    Omniconf is developed with the following principles in mind:
 
    1. *All configuration should be defined and populated a single place.* We
-      don't want to grep through your codebase to figure where some shady value
-      came from.
+      don't want to grep through our codebase to figure out where some shady
+      value comes from.
    2. *Configuration can be accessed from anywhere in the application.* We
       don't want to carry that port number five layers through the callstack,
       intermixing dynamic vars, optional and keyword arguments, and different
@@ -115,6 +115,10 @@
       (cfg/set [:database :port] 3306)
       #+END_SRC
 
+** Examples
+
+   <TODO>
+
 ** Configuration scheme syntax
 
    Configuration scheme is a map of option names to maps of their parameters.
@@ -188,6 +192,107 @@
      can mimic it by using a custom parser that wraps the value in a =delay=,
      the only difference that you will also have to call =force= on it every
      time.
+
+   - =:nested= --- a map that has the same structure as the top-level
+     configuration scheme. Nested options have all the rights: they can have
+     parsers, verifiers, defaults, etc. Example:
+
+     #+BEGIN_SRC clojure
+(cfg/define
+  {:statsd {:nested {:host {:parser identity
+                            :required true
+                            :description "IP address of the StatsD server"}
+                     :port {:parser cfg/parse-number
+                            :default 8125}}}})
+     #+END_SRC
+
+     CLI and ENV arguments have special transformation rules for nested options
+     --- dot as a separator for CLI arguments, and double underscore for ENV.
+
+     : [:statsd :host]    =>    --statsd.host
+     : [:statsd :host]    =>    STATSD__HOST
+
+     In the program you can use =cfg/get= to fetch a concrete value, or a whole
+     map at any level:
+
+     #+BEGIN_SRC clojure
+     (cfg/get :statsd :port) ;=> 8125
+     (cfg/get :statsd) ;=> {:host "127.0.0.1", :port 8125}
+     #+END_SRC
+
+** Tips, tricks, and FAQ
+
+*** Are there any drawbacks? What's the catch?
+
+    There are a few. First of all, Omniconf is much more complex and intertwined
+    than, say, Environ. This might put off some developers, although we suspect
+    they are re-implementing half of Omniconf functionality on top of Environ
+    anyway (like we did before).
+
+    Omniconf is not suited for dynamic configuration. If you need options to be
+    changed during runtime, values coming from some external dynamic sources,
+    you are better off using a proper solution for that, e.g. Zookeeper together
+    with some wrapper library.
+
+    Omniconf configuration map is a global mutable singleton. It is OK if you
+    use Omniconf like we suggest to --- populate the values before any
+    application code is executed, and then never change them again --- but there
+    might be usecases where this approach does not fit.
+
+    Omniconf is an application-level tool. You most likely don't want to make
+    your library depend on it, forcing the library users to configure through
+    Omniconf too.
+
+*** Providing configuration as files
+
+    EDN files are another source of configuration that Omniconf can use. They
+    must contain a map of options to their values, which will be merged into the
+    config when =populate-from-file= is called. The values should already be in
+    the option's desired format (number, keyword); but you can also use strings
+    so that parser will be called on them.
+
+    It is somewhat tricky to tell Omniconf where to look for the configuration
+    file. One of the solutions is to specify the configuration file as one of
+    the CLI options. So you have to =populate-from-opts= first, and then to
+    populate from config file if has been provided. However, this way the
+    configuration file will have the priority over CLI arguments which is not
+    always desirable. As a workaround, you can call =populate-from-opts= again,
+    but only if your CLI args are idempotent (do not contain =^:concat=).
+
+*** Special operations for EDN options
+
+    Sometimes you don't want to completely overwrite an EDN value but append to
+    it. For this case two special operations --- =^:concat= and =^:merge= can be
+    appended to a map or a list when setting them from any source. Example:
+
+    : (cfg/define {:emails {:parser cfg/parse-edn
+    :                       :default ["admin1@corp.org" "admin2@corp.org"]}
+    :              :roles  {:parser cfg/parse-edn
+    :                       :default {"admin1@corp.org" :admin
+    :                                 "admin2@corp.org" :admin}}})
+    : ...
+    : my-app --emails '^:concat ["user1@corp.org"]' --roles '^:merge {"user1@corp.org" :user}'
+
+*** Custom logging for Omniconf
+
+    By default, Omniconf prints errors and final configuration map to standard
+    output. But if you have many servers, it may not be very convenient to
+    connect onto each to see if all of them are correctly configured. Perhaps
+    you have a Logstash forwarder running on the instance, or some other
+    centralized logging solution. So, you can call =cfg/set-logging-fn= to make
+    Omniconf use it instead of =println=. For Timbre it will something like
+    this:
+
+    #+BEGIN_SRC clojure
+(require '[taoensso.timbre :as log])
+(cfg/set-logging-fn (fn [& args]
+                      (log/log1-fn log/*config* :info "omniconf.core"
+                                   nil nil :p (delay args) nil)))
+    #+END_SRC
+
+    Note that this will only work if you are able to initialize logging without
+    configuration from Omniconf. This is a chicken-and-egg problem that don't
+    have a proper solution, and is very case-specific.
 
 ** License
 
