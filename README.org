@@ -117,7 +117,9 @@
 
 ** Examples
 
-   <TODO>
+   Sample programs that use Omniconf: [[./example-lein][example-lein]] and [[./example-boot][example-boot]]. There is
+   not much difference in using Omniconf with these build tools, but Boot
+   requires a little hack to achieve parity with Leinigen.
 
 ** Configuration scheme syntax
 
@@ -220,6 +222,10 @@
      (cfg/get :statsd) ;=> {:host "127.0.0.1", :port 8125}
      #+END_SRC
 
+   - =:secret= --- if true, this optiion's value won't be printed out by
+     =cfg/verify=, instead you will see =<SECRET>=. Useful for passwords, API
+     keys and such.
+
 ** Tips, tricks, and FAQ
 
 *** Are there any drawbacks? What's the catch?
@@ -243,6 +249,44 @@
     your library depend on it, forcing the library users to configure through
     Omniconf too.
 
+*** Why are there no convenient Leiningen plugins/Boot tasks for Omniconf?
+
+    In the end we distribute and deploy our applications as uberjars. As a
+    standalone JAR our program doesn't have access to Leiningen or Boot. Hence,
+    it is better not to offload anything to plugins to avoid spawning
+    differences between development and production time.
+
+*** CLI help command
+
+    =:help= option gets a special treatment in Omniconf. It can have
+    =:help-name= and =:help-description= parameters that will be used when
+    printing the help message. If =populate-from-opts= encounters =--help= on
+    the arguments list, it prints the help message and quits.
+
+*** Useful functions and macros
+
+    =with-options= works as =let= for configuration values, it takes a binding
+    list of symbols that should have the same names as options' keyword names.
+    Only top-level options are supported, destructuring of nested values is not
+    possible right now.
+
+    #+BEGIN_SRC clojure
+(cfg/with-options [username password]
+  ;; Binds (cfg/get :username) to username, and (cfg/get :password) to password.
+  ...)
+    #+END_SRC
+
+*** Verify configuration during builds
+
+    It proves very useful to run =cfg/verify= as part of the build step. If you
+    provide all the options during that step as you do when running the program,
+    then you will be able catch the misconfiguration errors before the app is
+    deployed.
+
+    To do this properly you have to provide another entry point into your
+    program that only runs the config definition, population and verification.
+    Look into example projects for inspiration.
+
 *** Providing configuration as files
 
     EDN files are another source of configuration that Omniconf can use. They
@@ -251,10 +295,10 @@
     the option's desired format (number, keyword); but you can also use strings
     so that parser will be called on them.
 
-    It is somewhat tricky to tell Omniconf where to look for the configuration
-    file. One of the solutions is to specify the configuration file as one of
+    It is somewhat tricky to tell Omniconf where to look for a configuration
+    file. One of the solutions is to specify the configuration file in one of
     the CLI options. So you have to =populate-from-opts= first, and then to
-    populate from config file if has been provided. However, this way the
+    populate from config file if it has been provided. However, this way the
     configuration file will have the priority over CLI arguments which is not
     always desirable. As a workaround, you can call =populate-from-opts= again,
     but only if your CLI args are idempotent (do not contain =^:concat=).
@@ -263,7 +307,7 @@
 
     Sometimes you don't want to completely overwrite an EDN value but append to
     it. For this case two special operations --- =^:concat= and =^:merge= can be
-    appended to a map or a list when setting them from any source. Example:
+    attached to a map or a list when setting them from any source. Example:
 
     : (cfg/define {:emails {:parser cfg/parse-edn
     :                       :default ["admin1@corp.org" "admin2@corp.org"]}
@@ -276,12 +320,11 @@
 *** Custom logging for Omniconf
 
     By default, Omniconf prints errors and final configuration map to standard
-    output. But if you have many servers, it may not be very convenient to
-    connect onto each to see if all of them are correctly configured. Perhaps
-    you have a Logstash forwarder running on the instance, or some other
-    centralized logging solution. So, you can call =cfg/set-logging-fn= to make
-    Omniconf use it instead of =println=. For Timbre it will something like
-    this:
+    output. But if you have many servers it may not be very convenient to
+    connect to each to see if all of them are correctly configured. Perhaps you
+    have a Logstash forwarder running on the instance, or some other centralized
+    logging solution. So, you can call =cfg/set-logging-fn= to make Omniconf use
+    it instead of =println=. For Timbre it will be something like this:
 
     #+BEGIN_SRC clojure
 (require '[taoensso.timbre :as log])
@@ -291,8 +334,8 @@
     #+END_SRC
 
     Note that this will only work if you are able to initialize logging without
-    configuration from Omniconf. This is a chicken-and-egg problem that don't
-    have a proper solution, and is very case-specific.
+    any data from Omniconf. This is a chicken-and-egg problem that don't have a
+    proper solution, and is very case-specific.
 
 ** License
 

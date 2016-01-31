@@ -1,4 +1,4 @@
-(defproject omniconf "0.1.0"
+(defproject com.grammarly/omniconf "0.1.0"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
