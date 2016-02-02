@@ -80,9 +80,8 @@
    :edn {:parser parse-edn, :checker (constantly true)}})
 
 (defn- parse
-  "Given an option spec and the string value, tries to parse a the
-  value. Source should be either `:env`, `:cli` or `:file`."
-  [spec value-str source]
+  "Given an option spec and the string value, tries to parse that value."
+  [spec value-str]
   (let [parser (if (:nested spec)
                  #(let [value (edn/read-string %)]
                     (if (map? value)
@@ -137,9 +136,6 @@
   `(let [~@(mapcat (fn [sym] [sym `(get ~(keyword sym))]) bindings)]
      ~@body))
 
-#_(with-options [dest results-path]
-    (+ dest 3))
-
 (defn define
   "Declare the configuration that the program supports. `scheme` is a map of
   keyword names to specs.
@@ -156,7 +152,7 @@
   Supported attributes:
 
   :description - string to describe the option in the help message.
-  :type - one of #{:string :keyword :number :boolean :edn :file}.
+  :type - one of #{:string :keyword :number :boolean :edn :file :directory}.
   :parser - 1-arity fn to be called on a string given by CLI options or env.
             Unnecessary if :type is specified.
   :required - boolean value whether the option must have a value.
@@ -199,9 +195,9 @@
 
 (defn- flatten-and-transpose-scheme
   "Returns a flat hashmap from scheme where nested specs are in the top level,
-  and keys are the string values from `:env-name` or `:opt-name`. Inside specs
-  `:name` is transformed into a vector of keywords - path to that option. Source
-  is `:env`, `:cli`, or `:kw`."
+  and keys are either string values from `:env-name`, `:opt-name`, or keyword
+  paths. Inside specs `:name` is transformed into a vector of keywords - path to
+  that option. Source is `:env`, `:cli`, or `:kw`."
   [source scheme]
   (letfn [(fats [prefix scheme]
             (->> scheme
@@ -227,7 +223,7 @@
    (try
      (doseq [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)]
        (when-let [value (clj/get (System/getenv) env-name)]
-         (set (:name spec) (parse spec value :env))))
+         (set (:name spec) (parse spec value))))
      (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
 (defn- print-cli-help
@@ -259,7 +255,7 @@
      (try (let [transposed-scheme (flatten-and-transpose-scheme :cli @config-scheme)]
             (doseq [[k v] grouped-opts]
               (if-let [spec (clj/get transposed-scheme k)]
-                (set (:name spec) (parse spec v :cli))
+                (set (:name spec) (parse spec v))
                 (@logging-fn "WARNING: Unrecognized option:" k))))
           (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error))))))
 
@@ -274,9 +270,9 @@
                             spec (get-in @config-scheme path)]
                         (if (:nested spec)
                           (walk path value)
-                          (set path (if (and (string? value) (:parser spec))
-                                      (parse spec value :file)
-                                      value)))) tree))]
+                          (set path (if (string? value)
+                                      (parse spec value)
+                                      value))))))]
             (walk [] (edn/read in))))
         (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
@@ -301,7 +297,7 @@
   configuration state."
   [& {:keys [quit-on-error silent]}]
   (swap! config-scheme dissoc :help) ;; Not needed anymore.
-  (try (doseq [[_ {kw-name :name :as spec}] (flatten-and-transpose-scheme :env @config-scheme)]
+  (try (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw @config-scheme)]
          (let [value (get-in @config-values kw-name)]
            ;; Not using `cfg/get` above to avoid forcing delays too early.
            (when (and (:required spec)
