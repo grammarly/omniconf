@@ -43,6 +43,8 @@
    :renamed-option {:env-name "MY_OPTION"
                     :opt-name "custom-option"
                     :description "has custom names for different sources"}
+   :secret-option {:parser identity
+                   :secret true}
    :conf-file {:parser cfg/parse-filename
                :verifier cfg/verify-file-exists
                :description "it is idiomatic to provide a configuration file just as another option"}
@@ -112,6 +114,10 @@
     (is (thrown? Exception (cfg/verify)))
     (cfg/set :option-with-default 1024)
     (is (nil? (cfg/verify :silent true))))
+
+  (deftest secret
+    (cfg/set :secret-option "very-sensitive-data")
+    (is (= -1 (.indexOf (with-out-str (cfg/verify)) "very-sensitive-data"))))
 
   (deftest verify-file-exists
     (cfg/set :existing-file-option (io/file "nada.clj"))
