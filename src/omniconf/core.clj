@@ -5,7 +5,11 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [omniconf.core :as cfg])
+  (:import java.io.File))
+
+;; Plumbing
 
 (def ^:private config-scheme
   "Stores configuration description of the program."
@@ -38,26 +42,59 @@
   [fmt & args]
   (throw (ex-info (apply format fmt args) {})))
 
+;; Parsing
+
+(defn parse-edn
+  "Calls `clojure.edn/read-string` on a string."
+  [s]
+  (edn/read-string s))
+
+(defn parse-number
+  "Parses string as a Long."
+  [s]
+  (Long/parseLong s))
+
+(defn parse-boolean
+  "Parses string as a Boolean."
+  [s]
+  (not (#{nil "" "0" "false"} s)))
+
+(defn parse-filename
+  "Parses string as a relative filename."
+  [s]
+  (io/file s))
+
+(defn parse-directory
+  "Parses string as a relative directory."
+  [s]
+  (io/file s))
+
+(def ^:private default-types
+  "A map of standard types to their parsers and type checkers."
+  {:string {:parser identity, :checker string?}
+   :keyword {:parser keyword, :checker keyword?}
+   :number {:parser parse-number, :checker number?}
+   :boolean {:parser parse-boolean, :checker (partial instance? Boolean)}
+   :file {:parser parse-filename, :checker (partial instance? File)}
+   :edn {:parser parse-edn, :checker (constantly true)}})
+
 (defn- parse
   "Given an option spec and the string value, tries to parse a the
   value. Source should be either `:env`, `:cli` or `:file`."
   [spec value-str source]
-  (if-let [parser (if (:nested spec)
-                    #(let [value (edn/read-string %)]
-                       (if (map? value)
-                         value
-                         (fail "%s : Value of nested option should be a map, instead '%s'."
-                               (:name spec) value)))
-                    (:parser spec))]
+  (let [parser (if (:nested spec)
+                 #(let [value (edn/read-string %)]
+                    (if (map? value)
+                      value
+                      (fail "%s : Value of nested option should be a map, instead '%s'."
+                            (:name spec) value)))
+                 (or (:parser spec)
+                     (get-in default-types [(:type spec) :parser])
+                     identity))]
     (try (parser value-str)
          (catch clojure.lang.ExceptionInfo e (throw e))
          (catch Exception e (fail "%s : Couldn't parse value '%s'."
-                                  (:name spec) value-str)))
-    (case source
-      :file true
-      :cli true ;; In CLI options and config files treat no parser as true.
-      :env (not= value-str "0") ;; In env treat everything that isn't 0 as true.
-      )))
+                                  (:name spec) value-str)))))
 
 (defn get
   "Get the value from the current configuration given the path in nested
@@ -109,20 +146,24 @@
   Example:
 
   (define {:boolean-option {:description \"can be either true or nil\"}
-           :string-option  {:parser identity
+           :string-option  {:type :string
                             :description \"this option's value is taken as is\"}
-           :integer-option {:parser parse-number
+           :integer-option {:type :number
                             :required true
                             :description \"parsed as integer, must be present\"}}
 
   Supported attributes:
 
   :description - string to describe the option in the help message.
+  :type - one of #{:string :keyword :number :boolean :edn :file}.
   :parser - 1-arity fn to be called on a string given by CLI options or env.
+            Unnecessary if :type is specified.
   :required - boolean value whether the option must have a value.
   :required-if - 0-arity fn, if returns true, the option must have a value.
   :one-of - a set of accepted values for the given option.
-  :verifier - fn on key and val, should throw an exception if option is invalid."
+  :verifier - fn on key and val, should throw an exception if option is invalid.
+  :secret - if true, value will not be printed during verification.
+  :nested - allows to create hierarchies of options."
   [scheme]
   (reset! config-values (sorted-map))
 
@@ -274,6 +315,11 @@
                (fail "%s : Value for this option is %s, but must be one of %s"
                      kw-name value one-of)))
            (when value
+             (when-let [type (:type spec)]
+               (when-not (or (:delayed-transform spec)
+                             ((get-in default-types [type :checker]) value))
+                 (fail "%s : Value for this option is %s, but must have type %s"
+                       kw-name value type)))
              (when-let [verifier (:verifier spec)]
                (verifier kw-name value)))))
        (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))
@@ -334,28 +380,6 @@
 ;;          ;;                        :verifier cfg/verify-file-exists
 ;;          ;;                        :description "you can provide an additional configuration file just as another option"}
 ;;          })
-
-;; Parsers, verifiers, etc
-
-(defn parse-edn
-  "Calls `clojure.edn/read-string` on a string."
-  [s]
-  (edn/read-string s))
-
-(defn parse-number
-  "Parses string as a Long."
-  [s]
-  (Long/parseLong s))
-
-(defn parse-filename
-  "Parses string as a relative filename."
-  [s]
-  (io/file s))
-
-(defn parse-directory
-  "Parses string as a relative directory."
-  [s]
-  (io/file s))
 
 (defn verify-file-exists
   "Check if file or directory denoted by `file` exists, raise error otherwise."

@@ -7,28 +7,29 @@
   {:help {:description "prints this help message"
           :help-name "my-script"
           :help-description "description of the whole script"}
-   :boolean-option {:description "can be either t or nil, doesn't need a value in CLI options"}
-   :string-option {:parser identity
+   :boolean-option {:description "can be either true or false"
+                    :type :boolean}
+   :string-option {:type :string
                    :description "this option's value is taken as is"}
-   :integer-option {:parser cfg/parse-number
+   :integer-option {:type :number
                     :description "parsed as integer"}
-   :lisp-option {:parser cfg/parse-edn
-                 :description "read as lisp structure"
+   :edn-option {:type :edn
+                 :description "read as EDN structure"
                  :default '(1 2)}
-   :file-option {:parser cfg/parse-filename
+   :file-option {:type :file
                  :description "read as filename"}
-   :directory-option {:parser cfg/parse-directory
+   :directory-option {:type :file
                       :description "read as directory name"}
    :option-with-default {:parser cfg/parse-number
                          :default 1024
                          :description "has a default value"}
-   :required-option {:parser identity
+   :required-option {:type :string
                      :required true
                      :description "must have a value before call to `verify`, otherwise fails"}
    :conditional-option {:parser identity
                         :required-if (fn [] (= (cfg/get :option-with-default) 2048))
                         :description "must have a value if a condition applies"}
-   :option-from-set {:parser keyword
+   :option-from-set {:type :keyword
                      :one-of #{:foo :bar :baz}
                      :description "value must be a member of the provided list"}
    :existing-file-option {:parser cfg/parse-filename
@@ -37,32 +38,33 @@
    :nonempty-dir-option {:parser cfg/parse-directory
                          :verifier cfg/verify-directory-non-empty
                          :description "directory must have files"}
-   :delayed-option {:parser cfg/parse-number
+   :delayed-option {:type :number
                     :delayed-transform (fn [v] (+ v 5))
                     :description "has a custom transform that is called the first time the option is read"}
-   :renamed-option {:env-name "MY_OPTION"
+   :renamed-option {:type :boolean
+                    :env-name "MY_OPTION"
                     :opt-name "custom-option"
                     :description "has custom names for different sources"}
-   :secret-option {:parser identity
+   :secret-option {:type :string
                    :secret true}
-   :conf-file {:parser cfg/parse-filename
+   :conf-file {:type :file
                :verifier cfg/verify-file-exists
                :description "it is idiomatic to provide a configuration file just as another option"}
    :nested-option {:description "has child options"
                    :default {:first "alpha"}
                    :nested {:first {:description "nested option one"
-                                    :parser identity}
+                                    :type :string}
                             :second {:description "nested option two"
-                                     :parser cfg/parse-number
+                                     :type :number
                                      :default 70}
-                            :more {:nested {:one {:parser identity
+                            :more {:nested {:one {:type :string
                                                   :default "one"}
-                                            :two {:parser identity}}}}}})
+                                            :two {:type :string}}}}}})
 
 (deftest basic-options
   (cfg/populate-from-opts
    ["--required-option" "foo" "--boolean-option" "--string-option" "bar"
-    "--integer-option" "42" "--lisp-option" "^:concat (3)" "--file-option" "all.lisp"
+    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "foo.txt"
     "--directory-option" "test" "--option-with-default" "2048"
     "--conditional-option" "dummy" "--option-from-set" "baz"
     "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
@@ -72,8 +74,8 @@
   (is (= true (cfg/get :boolean-option)))
   (is (= "bar" (cfg/get :string-option)))
   (is (= 42 (cfg/get :integer-option)))
-  (is (= '(1 2 3) (cfg/get :lisp-option)))
-  (is (= (java.io.File. "all.lisp") (cfg/get :file-option)))
+  (is (= '(1 2 3) (cfg/get :edn-option)))
+  (is (= (java.io.File. "foo.txt") (cfg/get :file-option)))
   (is (= (java.io.File. "test/") (cfg/get :directory-option)))
   (is (= 2048 (cfg/get :option-with-default)))
   (is (= :baz (cfg/get :option-from-set)))
@@ -88,7 +90,7 @@
 (deftest extended-functionality
   (cfg/set :required-option true)
   (cfg/set :option-from-set :bar)
-  (cfg/set :file-option (io/file "test/errors.lisp"))
+  (cfg/set :file-option (io/file "project.clj"))
   (cfg/set :dir-option (io/file "test/"))
 
   (deftest fine-so-far
@@ -122,7 +124,7 @@
   (deftest verify-file-exists
     (cfg/set :existing-file-option (io/file "nada.clj"))
     (is (thrown? Exception (cfg/verify)))
-    (cfg/set :existing-file-option (io/file "build.boot")))
+    (cfg/set :existing-file-option (io/file "project.clj")))
 
   (deftest verify-nonempty-dir
     (.mkdirs (io/file "target" "_empty_"))

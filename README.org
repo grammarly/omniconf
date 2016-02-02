@@ -48,10 +48,10 @@
 (require '[omniconf.core :as cfg])
 (cfg/define
   {:hostname {:description "where service is deployed"
-              :parser identity
+              :type :string
               :required true}
    :port     {:description "HTTP port"
-              :parser cfg/parse-number
+              :type :number
               :default 8080}})
       #+END_SRC
 
@@ -140,23 +140,24 @@
    - =:description= --- string that describes this option. This description
      will be used to generate a help message for the program.
 
-   - =:parser= --- a single-arg function that converts a string value from CLI
-     or ENV into a Clojure value.
+   - =:type= --- currently the following types are supported: =:string=,
+     =:keyword=, =:number=, =:boolean=, =:edn=, =:file=. Setting a type
+     automatically defines how to parse a value for this option from a string,
+     and also verifies that the resulting value has the correct Clojure type.
 
-     Standard parsers:
-     + =identity= --- string
-     + =keyword= --- keyword
-     + =cfg/parse-number= --- number
-     + =cfg/parse-edn= --- arbitrary Clojure data structure
-     + =cfg/parse-filename= --- file or directory
+     Boolean types have some special treatment. When setting them from the
+     command line, one can omit the value completely.
 
-     If =:parser= is nil, the option is considered a boolean one. When such
-     option is set from ENV, any value except =0= will be considered =true=.
-     When set from CLI, such option doesn't require a value:
-
-     : (cfg/define {:foo {}, :bar {}})
+     : (cfg/define {:foo {:type :boolean}, :bar {:type :boolean}})
      : ...
      : $ my-app --foo --bar    # Confmap is {:foo true, :baz true}
+
+     A string parser for booleans treats strings "0" and "false" as =false=,
+     anything else as =true=.
+
+   - =:parser= --- a single-arg function that converts a string value from CMD
+     or ENV into a Clojure value. This option can be used instead of =:type= if
+     you need a custom option type.
 
    - =:default= --- the option will be initialized with this value. The default
      value must be specified as a CLojure datatype, not as a string to be
@@ -201,10 +202,10 @@
 
      #+BEGIN_SRC clojure
 (cfg/define
-  {:statsd {:nested {:host {:parser identity
+  {:statsd {:nested {:host {:type :string
                             :required true
                             :description "IP address of the StatsD server"}
-                     :port {:parser cfg/parse-number
+                     :port {:type :number
                             :default 8125}}}})
      #+END_SRC
 
@@ -309,9 +310,9 @@
     it. For this case two special operations --- =^:concat= and =^:merge= can be
     attached to a map or a list when setting them from any source. Example:
 
-    : (cfg/define {:emails {:parser cfg/parse-edn
+    : (cfg/define {:emails {:type :edn
     :                       :default ["admin1@corp.org" "admin2@corp.org"]}
-    :              :roles  {:parser cfg/parse-edn
+    :              :roles  {:type :edn
     :                       :default {"admin1@corp.org" :admin
     :                                 "admin2@corp.org" :admin}}})
     : ...
