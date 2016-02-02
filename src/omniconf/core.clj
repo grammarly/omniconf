@@ -225,18 +225,18 @@
      (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
 (defn- print-cli-help
-  "Prints a help message describing all supported CLI options."
+  "Prints a help message describing all supported CLI arguments."
   []
   (println "Stub!")
   (doseq [[_ v] @config-scheme]
     (println (format "%s - %s" (:opt-name v) (:description v)))))
 
-(defn populate-from-opts
-  "Fill configuration from command-line options."
-  ([cli-opts] (populate-from-opts cli-opts false))
-  ([cli-opts quit-on-error]
+(defn populate-from-cmd
+  "Fill configuration from command-line arguments."
+  ([cli-args] (populate-from-cmd cli-args false))
+  ([cli-args quit-on-error]
    (let [grouped-opts
-         (loop [[c & r] (conj (vec cli-opts) ::end) curr-opt nil, result []]
+         (loop [[c & r] (conj (vec cli-args) ::end) curr-opt nil, result []]
            (cond (= c ::end) (if curr-opt
                                (conj result [curr-opt true])
                                result)

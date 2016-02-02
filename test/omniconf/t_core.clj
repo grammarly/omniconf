@@ -62,7 +62,7 @@
                                             :two {:type :string}}}}}})
 
 (deftest basic-options
-  (cfg/populate-from-opts
+  (cfg/populate-from-cmd
    ["--required-option" "foo" "--boolean-option" "--string-option" "bar"
     "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "foo.txt"
     "--directory-option" "test" "--option-with-default" "2048"

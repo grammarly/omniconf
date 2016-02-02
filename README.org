@@ -1,10 +1,10 @@
 * Omniconf
 
-  Command-line options. Environment variables. Configuration files. Defaults of
-  all kinds. Almost every program requires some configuration which is usually
-  spread around multiple sources. Keeping track of all of them, mapping ones to
-  others, making sure they are present and correct, passing them around is a
-  constant cause of headache and bad code.
+  Command-line arguments. Environment variables. Configuration files. Defaults
+  of all kinds. Almost every program requires some configuration which is
+  usually spread around multiple sources. Keeping track of all of them, mapping
+  ones to others, making sure they are present and correct, passing them around
+  is a constant cause of headache and bad code.
 
   Configuration libraries, which there are plenty of <TODO>, promise to solve
   the configuration problems, and they partly do. However, they are usually too
@@ -60,7 +60,7 @@
    2. Populate the configuration from available sources:
 
       #+BEGIN_SRC clojure
-      (cfg/populate-from-opts args) ;; args is a CLI options list
+      (cfg/populate-from-cmd args) ;; args is a CLI options list
       (when-let [conf (cfg/get :conf)]
         (cfg/populate-from-file conf))
       (cfg/populate-from-env)
@@ -262,7 +262,7 @@
 
     =:help= option gets a special treatment in Omniconf. It can have
     =:help-name= and =:help-description= parameters that will be used when
-    printing the help message. If =populate-from-opts= encounters =--help= on
+    printing the help message. If =populate-from-cmd= encounters =--help= on
     the arguments list, it prints the help message and quits.
 
 *** Useful functions and macros
@@ -299,10 +299,10 @@
 
     It is somewhat tricky to tell Omniconf where to look for a configuration
     file. One of the solutions is to specify the configuration file in one of
-    the CLI options. So you have to =populate-from-opts= first, and then to
+    the CLI options. So you have to =populate-from-cmd= first, and then to
     populate from config file if it has been provided. However, this way the
     configuration file will have the priority over CLI arguments which is not
-    always desirable. As a workaround, you can call =populate-from-opts= again,
+    always desirable. As a workaround, you can call =populate-from-cmd= again,
     but only if your CLI args are idempotent (do not contain =^:concat=).
 
 *** Special operations for EDN options

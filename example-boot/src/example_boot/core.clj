@@ -61,7 +61,7 @@
                                                     :default "one"}
                                               :two {:type :string}}}}}})
 
-  (cfg/populate-from-opts cli-args quit-on-error)
+  (cfg/populate-from-cmd cli-args quit-on-error)
   (when-let [conf-file (cfg/get :conf-file)]
     (cfg/populate-from-file conf-file))
   (cfg/populate-from-env quit-on-error)
