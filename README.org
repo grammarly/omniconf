@@ -141,9 +141,10 @@
      will be used to generate a help message for the program.
 
    - =:type= --- currently the following types are supported: =:string=,
-     =:keyword=, =:number=, =:boolean=, =:edn=, =:file=. Setting a type
-     automatically defines how to parse a value for this option from a string,
-     and also verifies that the resulting value has the correct Clojure type.
+     =:keyword=, =:number=, =:boolean=, =:edn=, =:file=, =:directory=. Setting a
+     type automatically defines how to parse a value for this option from a
+     string, and also verifies that the resulting value has the correct Clojure
+     type.
 
      Boolean types have some special treatment. When setting them from the
      command line, one can omit the value completely.

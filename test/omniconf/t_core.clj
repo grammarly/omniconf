@@ -18,7 +18,7 @@
                  :default '(1 2)}
    :file-option {:type :file
                  :description "read as filename"}
-   :directory-option {:type :file
+   :directory-option {:type :directory
                       :description "read as directory name"}
    :option-with-default {:parser cfg/parse-number
                          :default 1024
@@ -35,7 +35,7 @@
    :existing-file-option {:parser cfg/parse-filename
                           :verifier cfg/verify-file-exists
                           :description "file should exist"}
-   :nonempty-dir-option {:parser cfg/parse-directory
+   :nonempty-dir-option {:parser cfg/parse-filename
                          :verifier cfg/verify-directory-non-empty
                          :description "directory must have files"}
    :delayed-option {:type :number

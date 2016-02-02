@@ -64,11 +64,6 @@
   [s]
   (io/file s))
 
-(defn parse-directory
-  "Parses string as a relative directory."
-  [s]
-  (io/file s))
-
 (def ^:private default-types
   "A map of standard types to their parsers and type checkers. A checker is just
   one internal kind of verifier."
@@ -77,6 +72,9 @@
    :number {:parser parse-number, :checker number?}
    :boolean {:parser parse-boolean, :checker (partial instance? Boolean)}
    :file {:parser parse-filename, :checker (partial instance? File)}
+   :directory {:parser parse-filename, :checker #(and (instance? File %)
+                                                      (or (not (.exists %))
+                                                          (.isDirectory %)))}
    :edn {:parser parse-edn, :checker (constantly true)}})
 
 (defn- parse
