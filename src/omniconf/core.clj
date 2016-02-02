@@ -70,7 +70,8 @@
   (io/file s))
 
 (def ^:private default-types
-  "A map of standard types to their parsers and type checkers."
+  "A map of standard types to their parsers and type checkers. A checker is just
+  one internal kind of verifier."
   {:string {:parser identity, :checker string?}
    :keyword {:parser keyword, :checker keyword?}
    :number {:parser parse-number, :checker number?}
@@ -305,81 +306,27 @@
            ;; Not using `cfg/get` above to avoid forcing delays too early.
            (when (and (:required spec)
                       (nil? value))
-             (fail "%s : Value for this option must be provided." kw-name))
+             (fail "%s : Value must be provided." kw-name))
            (when-let [r-if (:required-if spec)]
              (when (and (r-if)
                         (nil? value))
-               (fail "%s : Value for this option must be provided." kw-name)))
+               (fail "%s : Value must be provided." kw-name)))
            (when-let [one-of (:one-of spec)]
              (when-not (clj/get (clj/set one-of) value)
-               (fail "%s : Value for this option is %s, but must be one of %s"
+               (fail "%s : Value is %s, but must be one of %s"
                      kw-name value one-of)))
            (when value
              (when-let [type (:type spec)]
+               (when-not (clj/get default-types type)
+                 (fail "%s : Unknown type %s" kw-name type))
                (when-not (or (:delayed-transform spec)
                              ((get-in default-types [type :checker]) value))
-                 (fail "%s : Value for this option is %s, but must have type %s"
-                       kw-name value type)))
+                 (fail "%s : Value must have type %s, but is %s"
+                       kw-name type value)))
              (when-let [verifier (:verifier spec)]
                (verifier kw-name value)))))
        (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))
   (when-not silent (report-configuration)))
-
-;; (define {:boolean-option {:description "can be either true or nil"}
-;;          :string-option  {:parser identity
-;;                           :description "this option's value is taken as is"}
-;;          :integer-option {:parser parse-number
-;;                           :required true
-;;                           :description "parsed as integer, must be present"}})
-
-;; (define {:help {:description "prints this help message"
-;;                 :program-name "my-script"
-;;                 :program-description "program description"}
-;;          :boolean-option {:description "can be either t or nil, doesn't need a value in CLI options"}
-;;          :string-option  {:parser identity
-;; ;                          :required true
-;;                           :description "this option's value is taken as is"}
-;;          :integer-option {:parser parse-number
-;;                           ;; :required true
-;;                           ;; :one-of [17 42 87]
-;;                           :required-if #(:string-option @config-values)
-;;                           :description "parsed as integer"}
-
-;;          ;; :compound-option
-;;          ;; {:nested {:inside-option-1 {:parser identity}
-;;          ;;           :inside-option-2  {:parser cfg/parse-number}}}
-
-;;          ;; :edn-option           {:parser cfg/read-edn
-;;          ;;                        :description "read as EDN structure"}
-;;          ;; :file-option          {:parser cfg/parse-filename
-;;          ;;                        :description "read as filename"}
-;;          ;; :directory-option     {:parser cfg/parse-directory
-;;          ;;                        :description "read as directory name"}
-;;          ;; :option-with-default  {:parser cfg/parse-number
-;;          ;;                        :default 1024
-;;          ;;                        :description "has a default value"}
-;;          ;; :required-option      {:parser identity
-;;          ;;                        :required true
-;;          ;;                        :description "must have a value before call to (CFG:VERIFY), otherwise fails"}
-;;          ;; :option-from-set      {:parser keyword
-;;          ;;                        :one-of # {:foo :bar :baz}
-;;          ;;                        :description "value must be a member of the provided set"}
-;;          ;; :existing-file-option {:parser cfg/parse-filename
-;;          ;;                        :verifier cfg/verify-file-exists
-;;          ;;                        :description "file should exist"}
-;;          ;; :nonempty-dir-option  {:parser cfg/parse-directory
-;;          ;;                        :verifier cfg/verify-directory-non-empty
-;;          ;;                        :description "directory must have files"}
-;;          ;; :delayed-option       {:parser cfg/parse-number
-;;          ;;                        :delayed-transform (fn [v] (Thread/sleep 1000) (+ v 5))
-;;          ;;                        :description "has a custom transform that is called the first time the option is read"}
-;;          ;; :renamed-option       {:env-name "MY_OPTION"
-;;          ;;                        :opts-name "custom-option"
-;;          ;;                        :description "has custom names for different sources"}
-;;          ;; :conf-file            {:parser cfg/parse-filename
-;;          ;;                        :verifier cfg/verify-file-exists
-;;          ;;                        :description "you can provide an additional configuration file just as another option"}
-;;          })
 
 (defn verify-file-exists
   "Check if file or directory denoted by `file` exists, raise error otherwise."
