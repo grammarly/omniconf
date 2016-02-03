@@ -1,5 +1,4 @@
-* Omniconf
-
+* Omniconf [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf.svg?style=svg]]
   Command-line arguments. Environment variables. Configuration files. Defaults
   of all kinds. Almost every program requires some configuration which is
   usually spread around multiple sources. Keeping track of all of them, mapping
@@ -36,7 +35,7 @@
 
    Add this line to your list of dependencies:
 
-   : [com.grammarly/omniconf "0.1.0"]
+   [[https://clojars.org/com.grammarly/omniconf][https://clojars.org/com.grammarly/omniconf/latest-version.svg]]
 
 ** Usage
 
