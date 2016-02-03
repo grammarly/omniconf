@@ -1,0 +1,10 @@
+dependencies:
+    pre:
+    # Install circleci-matrix
+    - mkdir -p ~/.local/bin
+    - curl -fsSL https://raw.githubusercontent.com/michaelcontento/circleci-matrix/master/src/circleci-matrix.sh -o ~/.local/bin/circleci-matrix
+    - chmod +x ~/.local/bin/circleci-matrix
+
+test:
+  override:
+    - circleci-matrix
