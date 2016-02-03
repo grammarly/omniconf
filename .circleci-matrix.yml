@@ -1,0 +1,7 @@
+env:
+    - PROFILE=dev
+    - PROFILE=1.6
+    - PROFILE=1.7
+
+command:
+    - lein with-profile $PROFILE test

@@ -6,8 +6,8 @@
   ones to others, making sure they are present and correct, passing them around
   is a constant cause of headache and bad code.
 
-  Configuration libraries, which there are plenty of <TODO>, promise to solve
-  the configuration problems, and they partly do. However, they are usually too
+  Configuration libraries, which [[https://github.com/weavejester/environ][there]] [[https://github.com/juxt/aero][are]] [[https://github.com/jarohen/nomad][plenty]] [[https://github.com/reborg/fluorine][of]], promise to solve the
+  configuration problems, and they partly do. However, they are usually too
   simple, and provide only the mapping of configuration sources to Clojure data,
   leaving out the verification part. Omniconf tries to deliver the complete
   solution, even at the cost of increased complexity.
@@ -55,22 +55,22 @@
               :default 8080}})
       #+END_SRC
 
-     The full list of supported parameters is described <TODO> here.
+     The full list of supported parameters is described [[https://github.com/grammarly/omniconf#configuration-scheme-syntax][here]].
 
    2. Populate the configuration from available sources:
 
       #+BEGIN_SRC clojure
-      (cfg/populate-from-cmd args) ;; args is a CLI options list
+      (cfg/populate-from-cmd args) ;; args is a command-line arguments list
       (when-let [conf (cfg/get :conf)]
         (cfg/populate-from-file conf))
       (cfg/populate-from-env)
       #+END_SRC
 
       The order in which to tap the sources is up to you. Perhaps you want to
-      make environment variables overwrite CLI options, or give the highest priority to the config file
+      make environment variables overwrite command-line args, or give the highest priority to the config file
       In the above example we get the path to the
-      configuration file as =--conf= CLI option. For more information,
-      see <TODO>.
+      configuration file as =--conf= CMD argument. For more information,
+      see [[https://github.com/grammarly/omniconf#providing-configuration-as-files][this]].
 
    3. Call =verify=. It marks the boundary in your system, after which
       the whole configuration is guaranteed to be complete and correct.
@@ -123,11 +123,12 @@
 
 ** Configuration scheme syntax
 
-   Configuration scheme is a map of option names to the maps of their parameters.
-   Option name is a keyword that will denote the option in the application, and
-   maps to configuration sources with the following rules:
+   Configuration scheme is a map of option names to maps of their parameters.
+   Option name is a keyword that denotes how the option is retrieved inside
+   the program, and how it maps to configuration sources. Naming rules are the
+   following:
 
-   For CLI options:
+   For command-line arguments:
 
    : :some-option    =>    --some-option
 
@@ -198,8 +199,8 @@
      time.
 
    - =:nested= --- a map that has the same structure as the top-level
-     configuration scheme. Nested options have all the rights: they can have
-     parsers, verifiers, defaults, etc. Example:
+     configuration scheme. Nested options have the same rights as top-level
+     ones: they can have parsers, verifiers, defaults, etc. Example:
 
      #+BEGIN_SRC clojure
 (cfg/define
@@ -299,11 +300,11 @@
 
     It is somewhat tricky to tell Omniconf where to look for a configuration
     file. One of the solutions is to specify the configuration file in one of
-    the CLI options. So you have to =populate-from-cmd= first, and then to
-    populate from config file if it has been provided. However, this way the
-    configuration file will have the priority over CLI arguments which is not
-    always desirable. As a workaround, you can call =populate-from-cmd= again,
-    but only if your CLI args are idempotent (i.e. do not contain =^:concat=).
+    the command-line arguments. So you have to =populate-from-cmd= first, and
+    then to populate from config file if it has been provided. However, this way
+    the configuration file will have the priority over CLI arguments which is
+    not always desirable. As a workaround, you can call =populate-from-cmd=
+    again, but only if your CLI args are idempotent (i.e. they don't contain =^:concat=).
 
 *** Special operations for EDN options
 
@@ -311,13 +312,16 @@
     it. For this case two special operations, --- =^:concat= and =^:merge= can be
     attached to a map or a list when setting them from any source. Example:
 
-    : (cfg/define {:emails {:type :edn
-    :                       :default ["admin1@corp.org" "admin2@corp.org"]}
-    :              :roles  {:type :edn
-    :                       :default {"admin1@corp.org" :admin
-    :                                 "admin2@corp.org" :admin}}})
-    : ...
-    : my-app --emails '^:concat ["user1@corp.org"]' --roles '^:merge {"user1@corp.org" :user}'
+    #+BEGIN_SRC clojure
+    (cfg/define {:emails {:type :edn
+                          :default ["admin1@corp.org" "admin2@corp.org"]}
+                 :roles  {:type :edn
+                          :default {"admin1@corp.org" :admin
+                                    "admin2@corp.org" :admin}}})
+    ...
+    $ my-app --emails '^:concat ["user1@corp.org"]' --roles '^:merge {"user1@corp.org" :user}'
+    #+END_SRC
+
 
 *** Custom logging for Omniconf
 
@@ -335,11 +339,11 @@
                                    nil nil :p (delay args) nil)))
     #+END_SRC
 
-    Note that it will only work if you are able to initialize logging without
-    any data from Omniconf. This is a chicken-and-egg problem that doesn't have a
-    proper solution, and is very case-specific.
+    Note that this will only work if you are able to initialize logging without
+    any data from Omniconf. This is a chicken-and-egg problem that doesn't have
+    a proper solution, as it is very case-specific.
 
 ** License
 
    Copyright © 2016 Grammarly, Inc. Distributed under the Eclipse Public
-   License, the same as Clojure. See the file [[https://github.com/clojure-android/lein-droid/blob/master/LICENSE][LICENSE]].
+   License, the same as Clojure. See the file [[./LICENSE][LICENSE]].

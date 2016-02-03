@@ -64,7 +64,7 @@
 (deftest basic-options
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--boolean-option" "--string-option" "bar"
-    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "foo.txt"
+    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "project.clj"
     "--directory-option" "test" "--option-with-default" "2048"
     "--conditional-option" "dummy" "--option-from-set" "baz"
     "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
@@ -75,7 +75,7 @@
   (is (= "bar" (cfg/get :string-option)))
   (is (= 42 (cfg/get :integer-option)))
   (is (= '(1 2 3) (cfg/get :edn-option)))
-  (is (= (java.io.File. "foo.txt") (cfg/get :file-option)))
+  (is (= (java.io.File. "project.clj") (cfg/get :file-option)))
   (is (= (java.io.File. "test/") (cfg/get :directory-option)))
   (is (= 2048 (cfg/get :option-with-default)))
   (is (= :baz (cfg/get :option-from-set)))
@@ -88,18 +88,13 @@
   (is (= "two" (cfg/get :nested-option :more :two))))
 
 (deftest extended-functionality
-  (cfg/set :required-option true)
-  (cfg/set :option-from-set :bar)
-  (cfg/set :file-option (io/file "project.clj"))
-  (cfg/set :dir-option (io/file "test/"))
-
   (deftest fine-so-far
     (is (nil? (cfg/verify :silent true))))
 
   (deftest required
     (cfg/set :required-option nil)
     (is (thrown? Exception (cfg/verify)))
-    (cfg/set :required-option true))
+    (cfg/set :required-option "foo"))
 
   (deftest one-of
     (cfg/set :option-from-set :bar)
