@@ -5,8 +5,7 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
-            [clojure.string :as str]
-            [omniconf.core :as cfg])
+            [clojure.string :as str])
   (:import java.io.File))
 
 ;; Plumbing
@@ -236,7 +235,7 @@
   ([cli-args] (populate-from-cmd cli-args false))
   ([cli-args quit-on-error]
    (let [grouped-opts
-         (loop [[c & r] (conj (vec cli-args) ::end) curr-opt nil, result []]
+         (loop [[c & r] (conj (vec cli-args) ::end), curr-opt nil, result []]
            (cond (= c ::end) (if curr-opt
                                (conj result [curr-opt true])
                                result)

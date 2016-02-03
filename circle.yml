@@ -3,4 +3,4 @@ test:
     - lein test
     - lein with-profile 1.6 test
     - lein with-profile 1.7 test
-    - lein coverage
+    - lein cloverage && cp -r target/coverage $CIRCLE_ARTIFACTS

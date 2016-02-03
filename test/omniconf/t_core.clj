@@ -63,12 +63,12 @@
 
 (deftest basic-options
   (cfg/populate-from-cmd
-   ["--required-option" "foo" "--boolean-option" "--string-option" "bar"
+   ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "project.clj"
     "--directory-option" "test" "--option-with-default" "2048"
     "--conditional-option" "dummy" "--option-from-set" "baz"
     "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
-    "--nested-option.more.two" "two"])
+    "--nested-option.more.two" "two" "--boolean-option"])
 
   (is (nil? (cfg/verify :silent true)))
   (is (= true (cfg/get :boolean-option)))
@@ -88,22 +88,30 @@
   (is (= "two" (cfg/get :nested-option :more :two))))
 
 (deftest extended-functionality
-  (deftest fine-so-far
+  (cfg/populate-from-cmd
+   ["--required-option" "foo" "--string-option" "bar"
+    "--integer-option" "42" "--file-option" "project.clj"
+    "--directory-option" "test" "--option-with-default" "2048"
+    "--conditional-option" "dummy" "--option-from-set" "baz"
+    "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
+    "--nested-option.more.two" "two" "--boolean-option"])
+
+  (testing "fine-so-far"
     (is (nil? (cfg/verify :silent true))))
 
-  (deftest required
+  (testing "required"
     (cfg/set :required-option nil)
     (is (thrown? Exception (cfg/verify)))
     (cfg/set :required-option "foo"))
 
-  (deftest one-of
+  (testing "one-of"
     (cfg/set :option-from-set :bar)
     (is (nil? (cfg/verify :silent true)))
     (cfg/set :option-from-set :notbar)
     (is (thrown? Exception (cfg/verify)))
     (cfg/set :option-from-set :bar))
 
-  (deftest conditional-required
+  (testing "conditional-required"
     (cfg/set :option-with-default 2048)
     (cfg/set :conditional-option "foo")
     (is (nil? (cfg/verify :silent true)))
@@ -112,17 +120,35 @@
     (cfg/set :option-with-default 1024)
     (is (nil? (cfg/verify :silent true))))
 
-  (deftest secret
+  (testing "secret"
     (cfg/set :secret-option "very-sensitive-data")
     (is (= -1 (.indexOf (with-out-str (cfg/verify)) "very-sensitive-data"))))
 
-  (deftest verify-file-exists
+  (testing "verify-file-exists"
     (cfg/set :existing-file-option (io/file "nada.clj"))
     (is (thrown? Exception (cfg/verify)))
     (cfg/set :existing-file-option (io/file "project.clj")))
 
-  (deftest verify-nonempty-dir
+  (testing "verify-nonempty-dir"
     (.mkdirs (io/file "target" "_empty_"))
     (cfg/set :nonempty-dir-option (io/file "target" "_empty_"))
     (is (thrown? Exception (cfg/verify)))
-    (cfg/set :nonempty-dir-option (io/file "test"))))
+    (cfg/set :nonempty-dir-option (io/file "test")))
+
+  (testing "populate-from-opts"
+    (is (thrown? Exception (cfg/populate-from-cmd ["--string-option" "bar" "baz"]))))
+
+  (testing "print-cli-help"
+    (is (not= "" (with-out-str (#'cfg/print-cli-help)))))
+
+  (testing "populate-from-env"
+    (cfg/populate-from-env))
+
+  (testing "with-options"
+    (cfg/with-options [option-with-default]
+      (is (= 1024 option-with-default))))
+
+  (testing "parsing sanity-check"
+    (is (thrown? Exception (cfg/populate-from-cmd ["--nested-option" "foo"])))
+    (is (thrown? Exception (cfg/populate-from-cmd ["--integer-option" "garbage"]))))
+  )
