@@ -9,14 +9,14 @@
   Configuration libraries, which there are plenty of <TODO>, promise to solve
   the configuration problems, and they partly do. However, they are usually too
   simple, and provide only the mapping of configuration sources to Clojure data,
-  without the verification part. Omniconf tries to deliver the complete
+  leaving out the verification part. Omniconf tries to deliver the complete
   solution, even at the cost of increased complexity.
 
 ** Rationale
 
    Omniconf is developed with the following principles in mind:
 
-   1. *All configuration should be defined and populated a single place.* We
+   1. *All configuration should be defined and populated in a single place.* We
       don't want to grep through our codebase to figure out where some shady
       value comes from.
    2. *Configuration can be accessed from anywhere in the application.* We
@@ -25,12 +25,12 @@
       defaults at each layer. We treat the configuration as an immutable
       constant that is set before your main code is executed.
    3. *All configuration sources must be unified.* It shouldn't matter where the
-      option is set from --- it is uniformly set, verified, and accessed as
+      option is set from --- it is uniformly initialized, verified, and accessed as
       regular Clojure data.
    4. *Maximum verification.* We don't want to see FileNotFound stacktraces in
-      the middle of your program run. Whole configuration should be checked
+      the middle of your program run. The whole configuration should be checked
       early and automatically before the main application is executed. If there
-      are problems with it, a helpful message should be presented to the user.
+      are any problems with it, a helpful message should be presented to the user.
 
 ** Installation
 
@@ -67,28 +67,28 @@
       #+END_SRC
 
       The order in which to tap the sources is up to you. Perhaps you want to
-      deny environment variables overwrite CLI options, or make the config file
-      have the highest priority. In the above example we get the path to the
-      configuration file as =--conf= CLI option. For more information on that
+      make environment variables overwrite CLI options, or give the highest priority to the config file
+      In the above example we get the path to the
+      configuration file as =--conf= CLI option. For more information,
       see <TODO>.
 
-   3. Call =verify=. This marks the boundary in your system after which
-      whole configuration is guaranteed to be complete and correct.
+   3. Call =verify=. It marks the boundary in your system, after which
+      the whole configuration is guaranteed to be complete and correct.
 
       #+BEGIN_SRC clojure
       (cfg/verify :quit-on-error true)
       #+END_SRC
 
       If there is something wrong with the configuration, =verify= will throw a
-      proper exception. It is more convenient in REPL because you can inspect
+      proper exception. This behavior is appropriate in REPL because you can inspect
       the error and act upon it. But in the case of a standalone launch you
-      would rather see the exact error rather than whole stacktrace. So if
+      would rather see the exact error rather than the whole stacktrace. So, if
       =:quit-on-error true= is passed, the app will =exit 1= if verification
       fails.
 
       If everything is alright, =verify= will pretty-print the whole
       configuration map into the standard output. It is very convenient because
-      it gives you one final chance to glance on your config values and make
+      it gives you one final chance to throw a glance at your config values and make
       sure they look good. =:silent true= can be passed to =verify= to prevent
       it from printing the map.
 
@@ -99,7 +99,7 @@
       (cfg/get :hostname)
       #+END_SRC
 
-      For nested values you can path a path to the value, either as a vector, or
+      For nested values you can pass an address of the value, either as a vector, or
       like varargs:
 
       #+BEGIN_SRC clojure
@@ -123,7 +123,7 @@
 
 ** Configuration scheme syntax
 
-   Configuration scheme is a map of option names to maps of their parameters.
+   Configuration scheme is a map of option names to the maps of their parameters.
    Option name is a keyword that will denote the option in the application, and
    maps to configuration sources with the following rules:
 
@@ -176,7 +176,7 @@
                   :s3-bucket {:requried-if #(= (cfg/get :storage) :s3)}})
      #+END_SRC
 
-   - =:one-of= --- a sequence of allowed values that an option can become. If
+   - =:one-of= --- a sequence of allowed values that an option can take. If
      the value isn't present in the =:one-of= list, =verify= will fail.
      =:one-of= automatically implies =:required true= unless you add =nil= as a
      permitted value.
@@ -187,9 +187,9 @@
      verifiers:
      + =verify-file-exists=
      + =verify-directory-non-empty= --- checks if the value is a directory, and
-       it is non-empty.
+       if it is non-empty.
 
-   - =:delayed-tranform= --- a function of option value that will be called not
+   - =:delayed-transform= --- a function of option value that will be called not
      immediately, but the first time when the option is accessed in the code.
      Transform will be applied only once, and after that the option will store
      the transformed value. Usefulness of this feature is yet in question. You
@@ -224,8 +224,8 @@
      (cfg/get :statsd) ;=> {:host "127.0.0.1", :port 8125}
      #+END_SRC
 
-   - =:secret= --- if true, this optiion's value won't be printed out by
-     =cfg/verify=, instead you will see =<SECRET>=. Useful for passwords, API
+   - =:secret= --- if true, the value of this option won't be printed out by
+     =cfg/verify=. You will see =<SECRET>= instead. Useful for passwords, API
      keys and such.
 
 ** Tips, tricks, and FAQ
@@ -267,7 +267,7 @@
 
 *** Useful functions and macros
 
-    =with-options= works as =let= for configuration values, it takes a binding
+    =with-options= works as =let= for configuration values, i.e. it takes a binding
     list of symbols that should have the same names as options' keyword names.
     Only top-level options are supported, destructuring of nested values is not
     possible right now.
@@ -280,7 +280,7 @@
 
 *** Verify configuration during builds
 
-    It proves very useful to run =cfg/verify= as part of the build step. If you
+    It proves very useful to run =cfg/verify= as a part of the build step. If you
     provide all the options during that step as you do when running the program,
     then you will be able catch the misconfiguration errors before the app is
     deployed.
@@ -293,8 +293,8 @@
 
     EDN files are another source of configuration that Omniconf can use. They
     must contain a map of options to their values, which will be merged into the
-    config when =populate-from-file= is called. The values should already be in
-    the option's desired format (number, keyword); but you can also use strings
+    config when =populate-from-file= is called. The values should already have
+    the format the option requires (number, keyword); but you can also use strings
     so that parser will be called on them.
 
     It is somewhat tricky to tell Omniconf where to look for a configuration
@@ -303,12 +303,12 @@
     populate from config file if it has been provided. However, this way the
     configuration file will have the priority over CLI arguments which is not
     always desirable. As a workaround, you can call =populate-from-cmd= again,
-    but only if your CLI args are idempotent (do not contain =^:concat=).
+    but only if your CLI args are idempotent (i.e. do not contain =^:concat=).
 
 *** Special operations for EDN options
 
-    Sometimes you don't want to completely overwrite an EDN value but append to
-    it. For this case two special operations --- =^:concat= and =^:merge= can be
+    Sometimes you don't want to completely overwrite an EDN value, but append to
+    it. For this case two special operations, --- =^:concat= and =^:merge= can be
     attached to a map or a list when setting them from any source. Example:
 
     : (cfg/define {:emails {:type :edn
@@ -322,7 +322,7 @@
 *** Custom logging for Omniconf
 
     By default, Omniconf prints errors and final configuration map to standard
-    output. But if you have many servers it may not be very convenient to
+    output. But if you have many servers, it may not be very convenient to
     connect to each to see if all of them are correctly configured. Perhaps you
     have a Logstash forwarder running on the instance, or some other centralized
     logging solution. So, you can call =cfg/set-logging-fn= to make Omniconf use
@@ -335,8 +335,8 @@
                                    nil nil :p (delay args) nil)))
     #+END_SRC
 
-    Note that this will only work if you are able to initialize logging without
-    any data from Omniconf. This is a chicken-and-egg problem that don't have a
+    Note that it will only work if you are able to initialize logging without
+    any data from Omniconf. This is a chicken-and-egg problem that doesn't have a
     proper solution, and is very case-specific.
 
 ** License
