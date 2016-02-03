@@ -1,6 +1,6 @@
 test:
   override:
-    - lein test
+    - lein test2junit
     - lein with-profile 1.6 test
     - lein with-profile 1.7 test
     - lein cloverage && cp -r target/coverage $CIRCLE_ARTIFACTS
