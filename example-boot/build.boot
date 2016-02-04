@@ -1,5 +1,5 @@
 (set-env!
- :dependencies '[[com.grammarly/omniconf "0.1.0"]]
+ :dependencies '[[com.grammarly/omniconf "0.2.2"]]
  :source-paths #{"src/"})
 
 ;; Because Boot doesn't allow to directly pass arguments to tasks omitting its

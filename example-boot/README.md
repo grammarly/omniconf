@@ -10,5 +10,9 @@ You can also run only the verification step:
 
 ``` boot verify --required-option --option-from-set=bar ```
 
+Run help to see all options:
+
+``` boot run --help ```
+
 Notice that `build.boot` contains a hack as a temporary workaround for
 https://github.com/boot-clj/boot/issues/374.

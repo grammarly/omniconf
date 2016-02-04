@@ -32,10 +32,10 @@
      :option-from-set {:type :keyword
                        :one-of #{:foo :bar :baz}
                        :description "value must be a member of the provided list"}
-     :existing-file-option {:parser cfg/parse-filename
+     :existing-file-option {:type :file
                             :verifier cfg/verify-file-exists
                             :description "file should exist"}
-     :nonempty-dir-option {:parser cfg/parse-directory
+     :nonempty-dir-option {:type :directory
                            :verifier cfg/verify-directory-non-empty
                            :description "directory must have files"}
      :delayed-option {:type :number
