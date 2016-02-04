@@ -1,8 +1,8 @@
 (defproject com.grammarly/omniconf "0.2.0"
   :description "Fancy configuration library for your Clojure programs"
   :url "https://github.com/grammarly/omniconf"
-  :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :license {:name "Apache License, Version 2.0"
+            :url "http://www.apache.org/licenses/LICENSE-2.0"}
 
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]]
                    :plugins [[lein-cloverage "1.0.6"]
