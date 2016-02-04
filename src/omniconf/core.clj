@@ -223,12 +223,24 @@
          (set (:name spec) (parse spec value))))
      (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
-(defn- print-cli-help
-  "Prints a help message describing all supported CLI arguments."
+(defn print-cli-help
+  "Prints a help message describing all supported command-line arguments."
   []
-  (println "Stub!")
-  (doseq [[_ v] @config-scheme]
-    (println (format "%s - %s" (:opt-name v) (:description v)))))
+  (println (get-in @config-scheme [:help :help-name]) "-"
+           (get-in @config-scheme [:help :help-description]) "\n\n")
+  (let [options (->> (flatten-and-transpose-scheme :cmd @config-scheme)
+                     vals
+                     (remove :nested)
+                     (sort-by :opt-name))
+        name-width (apply max (map #(count (:opt-name %)) options))]
+    (doseq [{:keys [opt-name description required default secret]} options]
+      (cl-format true (format "~%dA - ~A. ~A~:[~;Default: ~:*~A~]~%%" name-width)
+                 opt-name description
+                 (cond (fn? required) "Conditionally required. "
+                       required "Required. "
+                       :else "")
+                 (when default
+                   (if secret "<SECRET>" default))))))
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
