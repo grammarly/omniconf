@@ -27,7 +27,7 @@
                        :required true
                        :description "must have a value before call to `verify`, otherwise fails"}
      :conditional-option {:parser identity
-                          :required-if (fn [] (= (cfg/get :option-with-default) 2048))
+                          :required (fn [] (= (cfg/get :option-with-default) 2048))
                           :description "must have a value if a condition applies"}
      :option-from-set {:type :keyword
                        :one-of #{:foo :bar :baz}

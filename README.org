@@ -1,4 +1,5 @@
 * Omniconf [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf.svg?style=svg]]
+
   Command-line arguments. Environment variables. Configuration files. Defaults
   of all kinds. Almost every program requires some configuration which is
   usually spread around multiple sources. Keeping track of all of them, mapping
@@ -164,10 +165,10 @@
      parsed.
 
    - =:required= --- if true, the value for this option must be provided,
-     otherwise =verify= will fail. Also, it can be a nullary function that
-     returns true if the option value must be provided. It is convenient if the
-     necessity of an option depends on the values of some other options.
-     Example:
+     otherwise =verify= will fail. It can also be a nullary function: if the
+     function returns true then the option value must be provided. It is
+     convenient if the necessity of an option depends on the values of some
+     other options. Example:
 
      #+BEGIN_SRC clojure
      (cfg/define {:storage   {:one-of [:file :s3]}
