@@ -91,7 +91,6 @@
       sure they look good. =:silent true= can be passed to =verify= to prevent
       it from printing the map.
 
-
    4. Use =get= to extract arbitrary value from the configuration.
 
       #+BEGIN_SRC clojure
