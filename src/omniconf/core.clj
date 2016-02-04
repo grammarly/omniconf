@@ -4,7 +4,7 @@
   (:require [clojure.core :as clj]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.pprint :refer [pprint]]
+            [clojure.pprint :refer [pprint cl-format]]
             [clojure.string :as str])
   (:import java.io.File))
 
@@ -150,7 +150,7 @@
 
   :description - string to describe the option in the help message.
   :type - one of #{:string :keyword :number :boolean :edn :file :directory}.
-  :parser - 1-arity fn to be called on a string given by CLI options or env.
+  :parser - 1-arity fn to be called on a string given by CMD args or ENV.
             Unnecessary if :type is specified.
   :required - boolean value whether the option must have a value;
               or 0-arity fn, if it returns true, the option must have a value.
@@ -194,7 +194,7 @@
   "Returns a flat hashmap from scheme where nested specs are in the top level,
   and keys are either string values from `:env-name`, `:opt-name`, or keyword
   paths. Inside specs `:name` is transformed into a vector of keywords - path to
-  that option. Source is `:env`, `:cli`, or `:kw`."
+  that option. Source is `:env`, `:cmd`, or `:kw`."
   [source scheme]
   (letfn [(fats [prefix scheme]
             (->> scheme
@@ -202,7 +202,7 @@
                            (let [spec (update-in spec [:name] #(conj prefix %))
                                  key ((case source
                                         :env :env-name
-                                        :cli :opt-name
+                                        :cmd :opt-name
                                         :kw :name) spec)]
                              (if-let [nested (:nested spec)]
                                (cons [key spec]
@@ -244,10 +244,10 @@
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
-  ([cli-args] (populate-from-cmd cli-args false))
-  ([cli-args quit-on-error]
+  ([cmd-args] (populate-from-cmd cmd-args false))
+  ([cmd-args quit-on-error]
    (let [grouped-opts
-         (loop [[c & r] (conj (vec cli-args) ::end), curr-opt nil, result []]
+         (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
            (cond (= c ::end) (if curr-opt
                                (conj result [curr-opt true])
                                result)
@@ -261,7 +261,7 @@
        (print-cli-help)
        (System/exit 0))
 
-     (try (let [transposed-scheme (flatten-and-transpose-scheme :cli @config-scheme)]
+     (try (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
             (doseq [[k v] grouped-opts]
               (if-let [spec (clj/get transposed-scheme k)]
                 (set (:name spec) (parse spec v))
