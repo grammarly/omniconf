@@ -152,8 +152,8 @@
   :type - one of #{:string :keyword :number :boolean :edn :file :directory}.
   :parser - 1-arity fn to be called on a string given by CLI options or env.
             Unnecessary if :type is specified.
-  :required - boolean value whether the option must have a value.
-  :required-if - 0-arity fn, if returns true, the option must have a value.
+  :required - boolean value whether the option must have a value;
+              or 0-arity fn, if it returns true, the option must have a value.
   :one-of - a set of accepted values for the given option.
   :verifier - fn on key and val, should throw an exception if option is invalid.
   :secret - if true, value will not be printed during verification.
@@ -297,11 +297,8 @@
   (try (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw @config-scheme)]
          (let [value (get-in @config-values kw-name)]
            ;; Not using `cfg/get` above to avoid forcing delays too early.
-           (when (and (:required spec)
-                      (nil? value))
-             (fail "%s : Value must be provided." kw-name))
-           (when-let [r-if (:required-if spec)]
-             (when (and (r-if)
+           (when-let [r (:required spec)]
+             (when (and (if (fn? r) (r) r)
                         (nil? value))
                (fail "%s : Value must be provided." kw-name)))
            (when-let [one-of (:one-of spec)]

@@ -165,15 +165,14 @@
      parsed.
 
    - =:required= --- if true, the value for this option must be provided,
-     otherwise =verify= will fail.
-
-   - =:required-if= --- a nullary function that returns true if the option value
-     must be provided. It is convenient if the necessity of an option depends on
-     the values of some other options. Example:
+     otherwise =verify= will fail. Also, it can be a nullary function that
+     returns true if the option value must be provided. It is convenient if the
+     necessity of an option depends on the values of some other options.
+     Example:
 
      #+BEGIN_SRC clojure
      (cfg/define {:storage   {:one-of [:file :s3]}
-                  :s3-bucket {:requried-if #(= (cfg/get :storage) :s3)}})
+                  :s3-bucket {:requried #(= (cfg/get :storage) :s3)}})
      #+END_SRC
 
    - =:one-of= --- a sequence of allowed values that an option can take. If
