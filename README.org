@@ -64,7 +64,7 @@
       (when-let [conf (cfg/get :conf)]
         (cfg/populate-from-file conf))
       (cfg/populate-from-env)
-      #+END_SRC
+#+END_SRC
 
       The order in which to tap the sources is up to you. Perhaps you want to
       make environment variables overwrite command-line args, or give the highest priority to the config file
