@@ -8,7 +8,7 @@ Experiment with configuration to change it, break it etc.
 
 You can also run only the verification step:
 
-``` boot verify --required-option --option-from-set=bar ```
+``` boot verify --required-option --option-from-set bar ```
 
 Run help to see all options:
 
