@@ -328,13 +328,13 @@
     connect to each to see if all of them are correctly configured. Perhaps you
     have a Logstash forwarder running on the instance, or some other centralized
     logging solution. So, you can call =cfg/set-logging-fn= to make Omniconf use
-    it instead of =println=. For Timbre it will be something like this:
+    it instead of =println=. For Timbre 4.3.1 it will be something like this:
 
     #+BEGIN_SRC clojure
 (require '[taoensso.timbre :as log])
 (cfg/set-logging-fn (fn [& args]
-                      (log/log1-fn log/*config* :info "omniconf.core"
-                                   nil nil :p (delay args) nil)))
+                      (log/-log! log/*config* :info "omniconf.core"
+                                 nil nil :p nil (delay (vec args)) nil)))
     #+END_SRC
 
     Note that this will only work if you are able to initialize logging without
