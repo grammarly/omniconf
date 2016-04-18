@@ -67,9 +67,9 @@
       #+END_SRC
 
       The order in which to tap the sources is up to you. Perhaps you want to
-      make environment variables overwrite command-line args, or give the highest priority to the config file
-      In the above example we get the path to the
-      configuration file as =--conf= CMD argument. For more information,
+      make environment variables overwrite command-line args, or give the
+      highest priority to the config file. In the above example we get the path
+      to the configuration file as =--conf= CMD argument. For more information,
       see [[https://github.com/grammarly/omniconf#providing-configuration-as-files][this]].
 
    3. Call =verify=. It marks the boundary in your system, after which
@@ -87,10 +87,10 @@
       fails.
 
       If everything is alright, =verify= will pretty-print the whole
-      configuration map into the standard output. It is very convenient because
-      it gives you one final chance to throw a glance at your config values and make
-      sure they look good. =:silent true= can be passed to =verify= to prevent
-      it from printing the map.
+      configuration map into the standard output. It is convenient because it
+      gives you one final chance to look at your config values and make sure
+      they are good. =:silent true= can be passed to =verify= to prevent it from
+      printing the map.
 
    4. Use =get= to extract arbitrary value from the configuration.
 
@@ -156,37 +156,37 @@
      A string parser for booleans treats strings "0" and "false" as =false=,
      anything else as =true=.
 
-   - =:parser= --- a single-arg function that converts a string value from CMD
-     or ENV into a Clojure value. This option can be used instead of =:type= if
-     you need a custom option type.
+   - =:parser= --- a single-arg function that converts a string value (given in
+     command-line option or environment variable) into a Clojure value. This
+     option can be used instead of =:type= if you need a custom option type.
 
    - =:default= --- the option will be initialized with this value. The default
-     value must be specified as a CLojure datatype, not as a string to be
+     value must be specified as a Clojure datatype, not as a string yet to be
      parsed.
 
    - =:required= --- if true, the value for this option must be provided,
-     otherwise =verify= will fail. It can also be a nullary function: if the
-     function returns true then the option value must be provided. It is
-     convenient if the necessity of an option depends on the values of some
-     other options. Example:
+     otherwise =verify= will fail. The value of this parameter can also be a
+     nullary function: if the function returns true then the option value must
+     be provided. It is convenient if the necessity of an option depends on the
+     values of some other options. Example:
 
      #+BEGIN_SRC clojure
      (cfg/define {:storage   {:one-of [:file :s3]}
                   :s3-bucket {:requried #(= (cfg/get :storage) :s3)}})
      #+END_SRC
 
-   - =:one-of= --- a sequence of allowed values that an option can take. If
+   - =:one-of= --- a sequence of values that an option is allowed to take. If
      the value isn't present in the =:one-of= list, =verify= will fail.
      =:one-of= automatically implies =:required true= unless you add =nil= as a
      permitted value.
 
-   - =:verifier= --- a function of option name and its value that should throw
-     an exception if the value is not correct. Verifier is only executed only if
-     the value is not nil, so it doesn't imply =:required true=. Predefined
+   - =:verifier= --- a function of =[option-name value]= that should throw an
+     exception if the value is not correct. Verifier is only executed if the
+     value is not nil, so it doesn't imply =:required true=. Predefined
      verifiers:
-     + =verify-file-exists=
-     + =verify-directory-non-empty= --- checks if the value is a directory, and
-       if it is non-empty.
+     + =cfg/verify-file-exists=
+     + =cfg/verify-directory-non-empty= --- checks if the value is a directory,
+       and if it is non-empty.
 
    - =:delayed-transform= --- a function of option value that will be called not
      immediately, but the first time when the option is accessed in the code.
@@ -297,18 +297,20 @@
     so that parser will be called on them.
 
     It is somewhat tricky to tell Omniconf where to look for a configuration
-    file. One of the solutions is to specify the configuration file in one of
-    the command-line arguments. So you have to =populate-from-cmd= first, and
-    then to populate from config file if it has been provided. However, this way
-    the configuration file will have the priority over CLI arguments which is
-    not always desirable. As a workaround, you can call =populate-from-cmd=
-    again, but only if your CLI args are idempotent (i.e. they don't contain =^:concat=).
+    file at runtime. One of the solutions is to specify the configuration file
+    in one of the command-line arguments. So you have to =populate-from-cmd=
+    first, and then to populate from config file if it has been provided.
+    However, this way the configuration file will have the priority over CLI
+    arguments which is not always desirable. As a workaround, you can call
+    =populate-from-cmd= again, but only if your CLI args are idempotent (i.e.
+    they don't contain =^:concat=).
 
 *** Special operations for EDN options
 
     Sometimes you don't want to completely overwrite an EDN value, but append to
-    it. For this case two special operations, --- =^:concat= and =^:merge= can be
-    attached to a map or a list when setting them from any source. Example:
+    it. For this case two special operations, --- =^:concat= and =^:merge= ---
+    can be attached to a map or a list when setting them from any source.
+    Example:
 
     #+BEGIN_SRC clojure
     (cfg/define {:emails {:type :edn
