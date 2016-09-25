@@ -1,4 +1,4 @@
-(defproject com.grammarly/omniconf "0.2.2"
+(defproject com.grammarly/omniconf "0.2.3"
   :description "Fancy configuration library for your Clojure programs"
   :url "https://github.com/grammarly/omniconf"
   :license {:name "Apache License, Version 2.0"
