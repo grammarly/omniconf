@@ -30,8 +30,11 @@
                         :required (fn [] (= (cfg/get :option-with-default) 2048))
                         :description "must have a value if a condition applies"}
    :option-from-set {:type :keyword
-                     :one-of #{:foo :bar :baz}
+                     :one-of #{:foo :bar :baz nil}
                      :description "value must be a member of the provided list"}
+   :option-from-set-with-nil {:type :keyword
+                              :one-of #{:foo :bar nil}
+                              :description "value must be a member of the provided list, but not required"}
    :existing-file-option {:parser cfg/parse-filename
                           :verifier cfg/verify-file-exists
                           :description "file should exist"}
@@ -79,6 +82,7 @@
   (is (= (java.io.File. "test/") (cfg/get :directory-option)))
   (is (= 2048 (cfg/get :option-with-default)))
   (is (= :baz (cfg/get :option-from-set)))
+  (is (= nil (cfg/get :option-from-set-with-nil)))
   (is (= 15 (cfg/get :delayed-option)))
   (is (= true (cfg/get :renamed-option)))
   (is (= {:first "alpha", :more {:two "two"}, :second 70} (cfg/get :nested-option)))

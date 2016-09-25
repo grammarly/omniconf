@@ -322,7 +322,7 @@
                         (nil? value))
                (fail "%s : Value must be provided." kw-name)))
            (when-let [one-of (:one-of spec)]
-             (when-not (clj/get (clj/set one-of) value)
+             (when (= ::not-found (clj/get (clj/set one-of) value ::not-found))
                (fail "%s : Value is %s, but must be one of %s"
                      kw-name value one-of)))
            (when value
