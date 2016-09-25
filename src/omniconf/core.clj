@@ -141,6 +141,18 @@
   `(let [~@(mapcat (fn [sym] [sym `(get ~(keyword sym))]) bindings)]
      ~@body))
 
+(defn- fill-default-values
+  "When called after a configuration schema is defined, sets the values for
+  options that have defaults."
+  []
+  (let [walk (fn walk [prefix coll]
+               (doseq [[kw-name spec] coll]
+                 (when-let [default (:default spec)]
+                   (apply set (conj prefix kw-name default)))
+                 (when-let [nested (:nested spec)]
+                   (walk (conj prefix kw-name) nested))))]
+    (walk [] @config-scheme)))
+
 (defn define
   "Declare the configuration that the program supports. `scheme` is a map of
   keyword names to specs.
@@ -184,25 +196,22 @@
                                                       (map name)
                                                       (str/join ".")
                                                       (str "--")))
+                                     (update-in [:prop-name]
+                                                #(->> (conj prefix (or % kw-name))
+                                                      (map name)
+                                                      (str/join ".")))
                                      (update-in [:nested]
                                                 #(when % (walk (conj prefix kw-name) %))))]))
                  (into (sorted-map))))]
     (reset! config-scheme (walk [] scheme)))
 
-  ;; Fill default values.
-  (let [walk (fn walk [prefix coll]
-               (doseq [[kw-name spec] coll]
-                 (when-let [default (:default spec)]
-                   (apply set (conj prefix kw-name default)))
-                 (when-let [nested (:nested spec)]
-                   (walk (conj prefix kw-name) nested))))]
-    (walk [] @config-scheme)))
+  (fill-default-values))
 
 (defn- flatten-and-transpose-scheme
   "Returns a flat hashmap from scheme where nested specs are in the top level,
   and keys are either string values from `:env-name`, `:opt-name`, or keyword
   paths. Inside specs `:name` is transformed into a vector of keywords - path to
-  that option. Source is `:env`, `:cmd`, or `:kw`."
+  that option. Source is `:env`, `:cmd`, `:prop`, or `:kw`."
   [source scheme]
   (letfn [(fats [prefix scheme]
             (->> scheme
@@ -211,6 +220,7 @@
                                  key ((case source
                                         :env :env-name
                                         :cmd :opt-name
+                                        :prop :prop-name
                                         :kw :name) spec)]
                              (if-let [nested (:nested spec)]
                                (cons [key spec]
@@ -292,6 +302,16 @@
                                       value))))))]
             (walk [] (edn/read in))))
         (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
+
+(defn populate-from-properties
+  "Fill configuration from Java properties."
+  ([] (populate-from-properties false))
+  ([quit-on-error]
+   (try
+     (doseq [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)]
+       (when-let [value (System/getProperty prop-name)]
+         (set (:name spec) (parse spec value))))
+     (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
 (defn report-configuration
   "Prints the current configuration state to `*out*`. Hide options marked as

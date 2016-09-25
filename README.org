@@ -1,13 +1,14 @@
 * Omniconf [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf.svg?style=svg]]
 
-  Command-line arguments. Environment variables. Configuration files. Defaults
-  of all kinds. Almost every program requires some configuration which is
-  usually spread around multiple sources. Keeping track of all of them, mapping
-  ones to others, making sure they are present and correct, passing them around
-  is a constant cause of headache and bad code.
+  Command-line arguments. Environment variables. Configuration files. Java
+  properties. Defaults of all kinds. Almost every program requires some
+  configuration which is usually spread around multiple sources. Keeping track
+  of all of them, mapping ones to others, making sure they are present and
+  correct, passing them around is a constant cause of headache and inconvenient
+  code design.
 
   Configuration libraries, which [[https://github.com/weavejester/environ][there]] [[https://github.com/juxt/aero][are]] [[https://github.com/jarohen/nomad][plenty]] [[https://github.com/reborg/fluorine][of]], promise to solve the
-  configuration problems, and they partly do. However, they are usually too
+  configuration problem, and they partly do. However, they are usually too
   simple, and provide only the mapping of configuration sources to Clojure data,
   leaving out the verification part. Omniconf tries to deliver the complete
   solution, even at the cost of increased complexity.
@@ -63,6 +64,7 @@
       (cfg/populate-from-cmd args) ;; args is a command-line arguments list
       (when-let [conf (cfg/get :conf)]
         (cfg/populate-from-file conf))
+      (cfg/populate-from-properties)
       (cfg/populate-from-env)
       #+END_SRC
 
@@ -134,6 +136,10 @@
    For environment variables:
 
    : :some-option    =>    SOME_OPTION
+
+   For Java properties:
+
+   : :some-option    =>    some-option   (java -Dsome-option=... if set from command line)
 
    Each option can have the following parameters:
 
@@ -210,10 +216,12 @@
      #+END_SRC
 
      CLI and ENV arguments have special transformation rules for nested options
-     --- dot as a separator for CLI arguments, and double underscore for ENV.
+     --- dot as a separator for CLI arguments and Java properties, and double
+     underscore for ENV.
 
-     : [:statsd :host]    =>    --statsd.host
-     : [:statsd :host]    =>    STATSD__HOST
+     : [:statsd :host]    =>    --statsd.host   (cmdline args)
+     : [:statsd :host]    =>    -Dstatsd.host   (properties)
+     : [:statsd :host]    =>    STATSD__HOST    (env variables)
 
      In the program you can use =cfg/get= to fetch a concrete value, or a whole
      map at any level:

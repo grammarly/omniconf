@@ -47,6 +47,7 @@
    :renamed-option {:type :boolean
                     :env-name "MY_OPTION"
                     :opt-name "custom-option"
+                    :prop-name "property-custom-option"
                     :description "has custom names for different sources"}
    :secret-option {:type :string
                    :secret true}
@@ -64,15 +65,7 @@
                                                   :default "one"}
                                             :two {:type :string}}}}}})
 
-(deftest basic-options
-  (cfg/populate-from-cmd
-   ["--required-option" "foo" "--string-option" "bar"
-    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "project.clj"
-    "--directory-option" "test" "--option-with-default" "2048"
-    "--conditional-option" "dummy" "--option-from-set" "baz"
-    "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
-    "--nested-option.more.two" "two" "--boolean-option"])
-
+(defn check-basic-options []
   (is (nil? (cfg/verify :silent true)))
   (is (= true (cfg/get :boolean-option)))
   (is (= "bar" (cfg/get :string-option)))
@@ -91,7 +84,43 @@
   (is (= {:two "two"} (cfg/get :nested-option :more)))
   (is (= "two" (cfg/get :nested-option :more :two))))
 
+(deftest basic-options-cmd
+  (reset! @#'cfg/config-values (sorted-map))
+  (#'cfg/fill-default-values)
+  (cfg/populate-from-cmd
+   ["--required-option" "foo" "--string-option" "bar"
+    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "project.clj"
+    "--directory-option" "test" "--option-with-default" "2048"
+    "--conditional-option" "dummy" "--option-from-set" "baz"
+    "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
+    "--nested-option.more.two" "two" "--boolean-option"])
+  (check-basic-options))
+
+(deftest basic-options-prop
+  (reset! @#'cfg/config-values (sorted-map))
+  (#'cfg/fill-default-values)
+
+  (System/setProperty "required-option" "foo")
+  (System/setProperty "string-option" "bar")
+  (System/setProperty "integer-option" "42")
+  (System/setProperty "edn-option" "^:concat (3)")
+  (System/setProperty "file-option" "project.clj")
+  (System/setProperty "directory-option" "test")
+  (System/setProperty "option-with-default" "2048")
+  (System/setProperty "conditional-option" "dummy")
+  (System/setProperty "option-from-set" "baz")
+  (System/setProperty "delayed-option" "10")
+  (System/setProperty "property-custom-option" "true")
+  (System/setProperty "nested-option.more" "{}")
+  (System/setProperty "nested-option.more.two" "two")
+  (System/setProperty "boolean-option" "true")
+
+  (cfg/populate-from-properties)
+  (check-basic-options))
+
 (deftest extended-functionality
+  (reset! @#'cfg/config-values (sorted-map))
+  (#'cfg/fill-default-values)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--file-option" "project.clj"
