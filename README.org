@@ -17,9 +17,10 @@
 
    Omniconf is developed with the following principles in mind:
 
-   1. *All configuration should be defined and populated in a single place.* We
-      don't want to grep through our codebase to figure out where some shady
-      value comes from.
+   1. *Configuration should be defined in a single place, but populated from
+      many.* A single form should specify which configuration options the
+      application expects. But the options themselves can come from files, CLI,
+      environment variables, etc.
    2. *Configuration can be accessed from anywhere in the application.* We
       don't want to carry that port number five layers through the callstack,
       intermixing dynamic vars, optional and keyword arguments, and different
