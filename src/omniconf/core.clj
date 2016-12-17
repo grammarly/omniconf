@@ -345,7 +345,7 @@
              (when (= ::not-found (clj/get (clj/set one-of) value ::not-found))
                (fail "%s : Value is %s, but must be one of %s"
                      kw-name value one-of)))
-           (when value
+           (when (some? value)
              (when-let [type (:type spec)]
                (when-not (clj/get default-types type)
                  (fail "%s : Unknown type %s" kw-name type))
