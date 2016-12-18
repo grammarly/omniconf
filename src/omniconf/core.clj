@@ -244,8 +244,9 @@
 (defn print-cli-help
   "Prints a help message describing all supported command-line arguments."
   []
-  (println (get-in @config-scheme [:help :help-name]) "-"
-           (get-in @config-scheme [:help :help-description]) "\n\n")
+  (cl-format true "~:[Standalone script~;~:*~A~]~:[.~; - ~:*~A~]~%~%"
+             (get-in @config-scheme [:help :help-name])
+             (get-in @config-scheme [:help :help-description]))
   (let [options (->> (flatten-and-transpose-scheme :cmd @config-scheme)
                      vals
                      (remove :nested)
