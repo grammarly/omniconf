@@ -147,7 +147,7 @@
   []
   (let [walk (fn walk [prefix coll]
                (doseq [[kw-name spec] coll]
-                 (when-let [default (:default spec)]
+                 (when-some [default (:default spec)]
                    (apply set (conj prefix kw-name default)))
                  (when-let [nested (:nested spec)]
                    (walk (conj prefix kw-name) nested))))]
