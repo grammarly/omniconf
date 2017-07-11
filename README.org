@@ -179,7 +179,7 @@
 
      #+BEGIN_SRC clojure
      (cfg/define {:storage   {:one-of [:file :s3]}
-                  :s3-bucket {:requried #(= (cfg/get :storage) :s3)}})
+                  :s3-bucket {:required #(= (cfg/get :storage) :s3)}})
      #+END_SRC
 
    - =:one-of= --- a sequence of values that an option is allowed to take. If
