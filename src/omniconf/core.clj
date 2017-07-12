@@ -153,6 +153,28 @@
                    (walk (conj prefix kw-name) nested))))]
     (walk [] @config-scheme)))
 
+(def env-char-replacements
+  "Valid characters in a keyword and their replacements in environment variables.
+   Check out https://clojure.org/reference/reader for a list of allowed characters."
+  {\/ "__SLASH__"
+   \. "__DOT__"
+   \* "__STAR__"
+   \+ "__PLUS__"
+   \! "__EXCL__"
+   \- "__"
+   \_ "__BAR__"
+   \' "__TICK__"
+   \? "__Q__"})
+
+(defn munge-env-fragment 
+  "Takes a keyword and replaces all special characters to make it a valid
+   environment variable fragment."
+  [fragment]
+  (->> (name fragment)
+       (map (fn [c] (get env-char-replacements c c)))
+       (apply str)
+       (.toUpperCase)))
+
 (defn define
   "Declare the configuration that the program supports. `scheme` is a map of
   keyword names to specs.
@@ -189,7 +211,7 @@
                                      (assoc :name kw-name)
                                      (update-in [:env-name]
                                                 #(->> (conj prefix (or % kw-name))
-                                                      (map (fn [x] (.replace (.toUpperCase (name x)) "-" "_")))
+                                                      (map munge-env-fragment)
                                                       (str/join "__")))
                                      (update-in [:opt-name]
                                                 #(->> (conj prefix (or % kw-name))
