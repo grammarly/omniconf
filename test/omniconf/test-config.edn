@@ -1,0 +1,4 @@
+{:existing-file-option "test/omniconf/test-config.edn"
+ :nonempty-dir-option "test/omniconf/"
+ :required-option "foobar"
+ :nested-option {:file "./"}}

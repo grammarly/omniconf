@@ -292,16 +292,16 @@
   ([edn-file] (populate-from-file edn-file false))
   ([edn-file quit-on-error]
    (try (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
-          (letfn [(walk [prefix tree]
+          (letfn [(walk [prefix spec-root tree]
                     (doseq [[key value] tree]
                       (let [path (conj prefix key)
-                            spec (get-in @config-scheme path)]
+                            spec (clj/get spec-root key)]
                         (if (:nested spec)
-                          (walk path value)
+                          (walk path (:nested spec) value)
                           (set path (if (string? value)
                                       (parse spec value)
                                       value))))))]
-            (walk [] (edn/read in))))
+            (walk [] @config-scheme (edn/read in))))
         (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
 
 (defn populate-from-properties

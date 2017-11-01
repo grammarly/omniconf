@@ -61,6 +61,8 @@
                             :second {:description "nested option two"
                                      :type :number
                                      :default 70}
+                            :file {:description "nested file option"
+                                   :type :file}
                             :more {:nested {:one {:type :string
                                                   :default "one"}
                                             :two {:type :string}}}}}})
@@ -175,7 +177,12 @@
     (is (not= "" (with-out-str (#'cfg/print-cli-help)))))
 
   (testing "populate-from-env"
-    (cfg/populate-from-env))
+    (cfg/populate-from-env)
+    (cfg/verify :silent true))
+
+  (testing "populate-from-file"
+    (cfg/populate-from-file "test/omniconf/test-config.edn")
+    (cfg/verify :silent true))
 
   (testing "with-options"
     (cfg/with-options [option-with-default]
