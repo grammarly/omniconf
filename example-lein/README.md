@@ -2,13 +2,13 @@
 
 Navigate to this directory and execute:
 
-``` OPTION_FROM_SET=foo lein run --required-option ```
+``` OPTION_FROM_SET=foo lein run --required-option qux```
 
 Experiment with configuration to change it, break it etc.
 
 You can also run only the verification step:
 
-``` lein verify --required-option --option-from-set bar ```
+``` lein verify --required-option qux --option-from-set bar ```
 
 Run help to see all options:
 
