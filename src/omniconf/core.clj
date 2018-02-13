@@ -126,7 +126,7 @@
         special-action (cond
                          (:merge (meta value)) merge
                          (:concat (meta value)) #(seq (concat %1 %2)))
-        dt (:delayed-transform (get-in @config-scheme ks))
+        dt (:delayed-transform (get-in @config-scheme (interpose :nested ks)))
         new-value (if special-action
                     (special-action (get ks) value)
                     value)]

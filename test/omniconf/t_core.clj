@@ -65,7 +65,9 @@
                                    :type :file}
                             :more {:nested {:one {:type :string
                                                   :default "one"}
-                                            :two {:type :string}}}}}})
+                                            :two {:type :string}}}}}
+   :delayed-nested {:nested {:delayed {:default "foo"
+                                       :delayed-transform #(str % "bar")}}}})
 
 (defn check-basic-options []
   (is (nil? (cfg/verify :silent true)))
@@ -154,6 +156,9 @@
     (is (thrown? Exception (cfg/verify)))
     (cfg/set :option-with-default 1024)
     (is (nil? (cfg/verify :silent true))))
+
+  (testing "delayed transform works for nested values"
+    (is (= "foobar" (cfg/get :delayed-nested :delayed))))
 
   (testing "secret"
     (cfg/set :secret-option "very-sensitive-data")
