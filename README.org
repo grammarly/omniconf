@@ -7,12 +7,12 @@
   laborious and thankless task.
 
   Configuration libraries, which [[https://github.com/weavejester/environ][there]] [[https://github.com/juxt/aero][are]] [[https://github.com/tolitius/cprop][plenty]] [[https://github.com/reborg/fluorine][of]], promise to solve the
-  configuration problem, and they do. However, they are usually provide only the
+  configuration problem, and they do. However, they usually provide only the
   mapping of configuration sources to Clojure data, leaving out the verification
   part. Omniconf's value proposition, among other features, is the requirement
-  to declare the configuration that app expects upfront, and the ability to
-  validate the configuration early and display helpful messages if the
-  application is misconfigured.
+  to declare the expected configuration upfront, and the ability to validate the
+  configuration early and display helpful messages if the application is
+  misconfigured.
 
   In terms of configuration sources, Omniconf supports:
 
@@ -25,22 +25,21 @@
 
    Omniconf is developed with the following principles in mind:
 
-   1. *Configuration should be defined in a single place, but populated from
-      many.* A single form should specify which configuration options the
-      application expects. But the options themselves can come from files, CLI,
-      environment variables, etc.
-   2. *Configuration can be accessed from anywhere in the application.* We
-      don't want to carry that port number five layers through the callstack,
-      intermixing dynamic vars, optional and keyword arguments, and different
-      defaults at each layer. We treat the configuration as an immutable
-      constant that is set before your main code is executed.
-   3. *All configuration sources must be unified.* It shouldn't matter where the
-      option is set from --- it is uniformly initialized, verified, and accessed as
-      regular Clojure data.
-   4. *Maximum verification.* We don't want to see FileNotFound stacktraces in
+   1. *Explicit over implicit.* Most configuration libraries allow to grab a
+      configuration value (e.g. from ENV) at any point of time from any place in
+      the code. This makes it impossible to list all configuration options that
+      the program uses without reading the entire source. Omniconf requires you
+      to declare all possible configuration upfront, at the beginning of the
+      program execution.
+   2. *All configuration sources must be unified.* It shouldn't matter where the
+      option is set from --- environment variables, CLI arguments, or config
+      files. It is uniformly initialized, verified, and accessed as regular
+      Clojure data.
+   3. *Maximum verification.* We don't want to see FileNotFound stacktraces in
       the middle of your program run. The whole configuration should be checked
-      early and automatically before the main application is executed. If there
-      are any problems with it, a helpful message should be presented to the user.
+      early and automatically before the rest of the code is executed. If there
+      are any problems with it, a helpful message should be presented to the
+      user.
 
 ** Installation
 
