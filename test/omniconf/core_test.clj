@@ -1,4 +1,4 @@
-(ns omniconf.t-core
+(ns omniconf.core-test
   (:require [omniconf.core :as cfg]
             [clojure.java.io :as io]
             [clojure.test :refer :all]))
