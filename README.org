@@ -86,15 +86,12 @@
       the whole configuration is guaranteed to be complete and correct.
 
       #+BEGIN_SRC clojure
-      (cfg/verify :quit-on-error true)
+      (cfg/verify)
       #+END_SRC
 
       If there is something wrong with the configuration, =verify= will throw a
-      proper exception. This behavior is appropriate in REPL because you can inspect
-      the error and act upon it. But in the case of a standalone launch you
-      would rather see the exact error rather than the whole stacktrace. So, if
-      =:quit-on-error true= is passed, the app will =exit 1= if verification
-      fails.
+      proper exception. If called not in the REPL environment, the exception
+      will be stripped of its stacktrace, so that you only see the exact error.
 
       If everything is alright, =verify= will pretty-print the whole
       configuration map into the standard output. It is convenient because it

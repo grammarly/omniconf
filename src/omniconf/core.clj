@@ -1,4 +1,4 @@
-;; Copyright 2016 Grammarly, Inc.
+;; Copyright 2016-2018 Grammarly, Inc.
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
@@ -35,14 +35,29 @@
   [fn]
   (reset! logging-fn fn))
 
-(defn- quit-or-rethrow
-  "If `quit-on-error` is true, log the exception and exit 1 the application,
-  otherwise rethrow it."
-  [e quit-on-error]
-  (if quit-on-error
-    (do (binding [*out* *err*] (@logging-fn "ERROR:" (.getMessage e)))
-        (System/exit 1))
-    (throw e)))
+(defn- running-in-repl?
+  "Return true when this function is executed from within the REPL."
+  []
+  (some (fn [^StackTraceElement ste]
+          (and (= "clojure.main$repl" (.getClassName ste))
+               (= "doInvoke" (.getMethodName ste))))
+        (.getStackTrace (Thread/currentThread))))
+
+(defn- log-and-rethrow
+  "Log the exception using `logging-fn` and rethrow the exception. If called not
+  from the REPL, clear the stacktrace of the rethrown exception."
+  [e]
+  (binding [*out* *err*]
+    (@logging-fn "ERROR:" (.getMessage e)))
+  (when-not (running-in-repl?)
+    (.setStackTrace ^Exception e (into-array StackTraceElement [])))
+  (throw e))
+
+(defmacro ^:private try-log
+  "Like regular `try`, but calls `log-and-rethrow` on ExceptionInfo exceptions."
+  [& body]
+  `(try ~@body
+        (catch clojure.lang.ExceptionInfo e# (log-and-rethrow e#))))
 
 (defn fail
   "Throws an exception with a message specified by `fmt` and `args`."
@@ -233,13 +248,15 @@
   "Fill configuration from environment variables. This function must be called
   only after `define`. If `quit-on-error` is true, immediately quit when program
   occurs."
-  ([] (populate-from-env false))
   ([quit-on-error]
-   (try
-     (doseq [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)]
-       (when-let [value (clj/get (System/getenv) env-name)]
-         (set (:name spec) (parse spec value))))
-     (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
+   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
+   (populate-from-env))
+  ([]
+   (try-log
+    (doseq [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)]
+      (when-let [value (clj/get (System/getenv) env-name)]
+        (set (:name spec) (parse spec value))))))
+  {:forms '([])})
 
 (defn print-cli-help
   "Prints a help message describing all supported command-line arguments."
@@ -263,56 +280,64 @@
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
-  ([cmd-args] (populate-from-cmd cmd-args false))
   ([cmd-args quit-on-error]
-   (let [grouped-opts
-         (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
-           (cond (= c ::end) (if curr-opt
-                               (conj result [curr-opt true])
-                               result)
-                 (.startsWith c "--") (recur r c (if curr-opt
-                                                   (conj result [curr-opt true])
-                                                   result))
-                 curr-opt (recur r nil (conj result [curr-opt c]))
-                 :else (fail "Malformed command-line arguments, key expected, '%s' found."
-                             c)))]
-     (when (clj/get (into {} grouped-opts) "--help")
-       (print-cli-help)
-       (System/exit 0))
+   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
+   (populate-from-cmd cmd-args))
+  ([cmd-args]
+   (try-log
+    (let [grouped-opts
+          (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
+            (cond (= c ::end) (if curr-opt
+                                (conj result [curr-opt true])
+                                result)
+                  (.startsWith c "--") (recur r c (if curr-opt
+                                                    (conj result [curr-opt true])
+                                                    result))
+                  curr-opt (recur r nil (conj result [curr-opt c]))
+                  :else (fail "Malformed command-line arguments, key expected, '%s' found."
+                              c)))]
+      (when (clj/get (into {} grouped-opts) "--help")
+        (print-cli-help)
+        (System/exit 0))
 
-     (try (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
-            (doseq [[k v] grouped-opts]
-              (if-let [spec (clj/get transposed-scheme k)]
-                (set (:name spec) (parse spec v))
-                (@logging-fn "WARNING: Unrecognized option:" k))))
-          (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error))))))
+      (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
+        (doseq [[k v] grouped-opts]
+          (if-let [spec (clj/get transposed-scheme k)]
+            (set (:name spec) (parse spec v))
+            (@logging-fn "WARNING: Unrecognized option:" k)))))))
+  {:forms '([cmd-args])})
 
 (defn populate-from-file
   "Fill configuration from an edn file."
-  ([edn-file] (populate-from-file edn-file false))
   ([edn-file quit-on-error]
-   (try (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
-          (letfn [(walk [prefix spec-root tree]
-                    (doseq [[key value] tree]
-                      (let [path (conj prefix key)
-                            spec (clj/get spec-root key)]
-                        (if (:nested spec)
-                          (walk path (:nested spec) value)
-                          (set path (if (string? value)
-                                      (parse spec value)
-                                      value))))))]
-            (walk [] @config-scheme (edn/read in))))
-        (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
+   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
+   (populate-from-file edn-file))
+  ([edn-file]
+   (try-log
+    (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
+      (letfn [(walk [prefix spec-root tree]
+                (doseq [[key value] tree]
+                  (let [path (conj prefix key)
+                        spec (clj/get spec-root key)]
+                    (if (:nested spec)
+                      (walk path (:nested spec) value)
+                      (set path (if (string? value)
+                                  (parse spec value)
+                                  value))))))]
+        (walk [] @config-scheme (edn/read in))))))
+  {:forms '([edn-file])})
 
 (defn populate-from-properties
   "Fill configuration from Java properties."
-  ([] (populate-from-properties false))
   ([quit-on-error]
-   (try
+   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
+   (populate-from-properties))
+  ([]
+   (try-log
      (doseq [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)]
        (when-let [value (System/getProperty prop-name)]
-         (set (:name spec) (parse spec value))))
-     (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))))
+         (set (:name spec) (parse spec value))))))
+  {:forms '([])})
 
 (defn report-configuration
   "Prints the current configuration state to `*out*`. Hide options marked as
@@ -333,30 +358,30 @@
   and prints the configuration. If `:quit-on-error` is set, script will exit if
   configuration is incorrect. If `:silent` is true, don't print the
   configuration state."
-  [& {:keys [quit-on-error silent]}]
+  [& {:keys [silent]}]
   (swap! config-scheme dissoc :help) ;; Not needed anymore.
-  (try (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw @config-scheme)]
-         (let [value (get-in @config-values kw-name)]
-           ;; Not using `cfg/get` above to avoid forcing delays too early.
-           (when-let [r (:required spec)]
-             (when (and (if (fn? r) (r) r)
-                        (nil? value))
-               (fail "%s : Value must be provided." kw-name)))
-           (when-let [one-of (:one-of spec)]
-             (when (= ::not-found (clj/get (clj/set one-of) value ::not-found))
-               (fail "%s : Value is %s, but must be one of %s"
-                     kw-name value one-of)))
-           (when (some? value)
-             (when-let [type (:type spec)]
-               (when-not (clj/get default-types type)
-                 (fail "%s : Unknown type %s" kw-name type))
-               (when-not (or (:delayed-transform spec)
-                             ((get-in default-types [type :checker]) value))
-                 (fail "%s : Value must have type %s, but is %s"
-                       kw-name type value)))
-             (when-let [verifier (:verifier spec)]
-               (verifier kw-name value)))))
-       (catch clojure.lang.ExceptionInfo e (quit-or-rethrow e quit-on-error)))
+  (try-log
+   (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw @config-scheme)]
+     (let [value (get-in @config-values kw-name)]
+       ;; Not using `cfg/get` above to avoid forcing delays too early.
+       (when-let [r (:required spec)]
+         (when (and (if (fn? r) (r) r)
+                    (nil? value))
+           (fail "%s : Value must be provided." kw-name)))
+       (when-let [one-of (:one-of spec)]
+         (when (= ::not-found (clj/get (clj/set one-of) value ::not-found))
+           (fail "%s : Value is %s, but must be one of %s"
+                 kw-name value one-of)))
+       (when (some? value)
+         (when-let [type (:type spec)]
+           (when-not (clj/get default-types type)
+             (fail "%s : Unknown type %s" kw-name type))
+           (when-not (or (:delayed-transform spec)
+                         ((get-in default-types [type :checker]) value))
+             (fail "%s : Value must have type %s, but is %s"
+                   kw-name type value)))
+         (when-let [verifier (:verifier spec)]
+           (verifier kw-name value))))))
   (when-not silent (report-configuration)))
 
 (defn verify-file-exists
