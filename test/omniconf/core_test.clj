@@ -14,8 +14,8 @@
    :integer-option {:type :number
                     :description "parsed as integer"}
    :edn-option {:type :edn
-                 :description "read as EDN structure"
-                 :default '(1 2)}
+                :description "read as EDN structure"
+                :default '(1 2)}
    :file-option {:type :file
                  :description "read as filename"}
    :directory-option {:type :directory

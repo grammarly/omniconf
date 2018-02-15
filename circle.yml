@@ -1,6 +1,24 @@
-test:
-  override:
-    - lein test2junit
-    - lein with-profile 1.7 test
-    - lein with-profile 1.8 test
-    - lein cloverage && cp -r target/coverage $CIRCLE_ARTIFACTS
+version: 2
+jobs:
+  build:
+    working_directory: ~/project
+    docker:
+      - image: clojure:boot-2.7.2-alpine
+    steps:
+      - checkout
+      - restore_cache:
+          key: project-{{ checksum "boot.properties" }}-{{ checksum "build.boot" }}
+      - run: boot test --junit-path target/junit19.xml
+      - store_test_results:
+          path: target/
+      - store_artifacts:
+          path: target/
+      - save_cache:
+          paths:
+            - ~/.m2
+            - ~/.boot/cache/lib
+            - ~/.boot/cache/bin
+          key: project-{{ checksum "boot.properties" }}-{{ checksum "build.boot" }}
+    environment:
+      BOOT_JVM_OPTIONS: "-Xms512m -Xmx1024m"
+      BOOT_WATCHERS_DISABLE: "yes"
