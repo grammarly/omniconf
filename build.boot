@@ -10,9 +10,15 @@
 (def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.9.0"))
 
 (set-env!
- :dependencies `[[org.clojure/clojure ~clj-version :scope "provided"]
-                 [boot/core "2.7.2" :scope "provided"]
-                 [metosin/bat-test "0.4.0" :scope "test"]]
+ :dependencies (-> '[[amazonica "0.3.119" :exclusions [com.amazonaws/aws-java-sdk
+                                                       com.amazonaws/amazon-kinesis-client]
+                      :scope "ssm"]
+                     [com.amazonaws/aws-java-sdk-core "1.11.237" :scope "ssm"]
+                     [com.amazonaws/aws-java-sdk-ssm "1.11.237" :scope "ssm"]
+
+                     [boot/core "2.7.2" :scope "provided"]
+                     [metosin/bat-test "0.4.0" :scope "test"]]
+                   (conj ['org.clojure/clojure clj-version :scope "provided"]))
  :source-paths #{"src/"}
  :test-paths #{"test/"}
  :target-path "target/")
@@ -30,15 +36,29 @@
                     [:pretty])]
     ((resolve 'metosin.bat-test/bat-test) :report reporters)))
 
-(deftask build
-  "Build the JAR file."
+(deftask deploy
+  "Build and deploy the JAR files."
   []
-  (set-env! :resource-paths (get-env :source-paths)
-            ;; Remove unnecessary deps
-            :dependencies
-            (fn [deps]
-              (remove #(let [{:keys [project scope]} (boot.util/dep-as-map %)]
-                         (or (= project 'boot/core)
-                             (= scope "test")))
-                      deps)))
-  (comp (pom) (jar)))
+  (comp (sift :add-resource (get-env :source-paths)
+              :include #{#"^omniconf/core.clj$"})
+        (pom :dependencies
+             ;; Remove unnecessary deps
+             (remove #(let [{:keys [project scope]} (boot.util/dep-as-map %)]
+                        (or (= project 'boot/core)
+                            (#{"test" "ssm"} scope)))
+                     (get-env :dependencies)))
+        (jar)
+        (push :repo "clojars")
+
+        ;; Build SSM jar
+        (sift :add-resource (get-env :source-paths)
+              :include #{#"^omniconf/ssm.clj$"})
+        (pom :project 'com.grammarly/omniconf.ssm
+             :description "Module for Omniconf to support Amazon SSM as a configuration source"
+             :dependencies
+             ;; Leave only SSM deps
+             (filter #(let [{:keys [scope]} (boot.util/dep-as-map %)]
+                        (= scope "ssm"))
+                     (get-env :dependencies)))
+        (jar)
+        (push :repo "clojars")))

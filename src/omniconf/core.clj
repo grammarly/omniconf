@@ -215,6 +215,12 @@
                                                 #(->> (conj prefix (or % kw-name))
                                                       (map name)
                                                       (str/join ".")))
+                                     (update-in [:ssm-name]
+                                                #(or %
+                                                     (->> (conj prefix kw-name)
+                                                          (map name)
+                                                          (str/join "/")
+                                                          (str "./"))))
                                      (update-in [:nested]
                                                 #(when % (walk (conj prefix kw-name) %))))]))
                  (into (sorted-map))))]
@@ -236,6 +242,7 @@
                                         :env :env-name
                                         :cmd :opt-name
                                         :prop :prop-name
+                                        :ssm :ssm-name
                                         :kw :name) spec)]
                              (if-let [nested (:nested spec)]
                                (cons [key spec]
@@ -338,6 +345,18 @@
        (when-let [value (System/getProperty prop-name)]
          (set (:name spec) (parse spec value))))))
   {:forms '([])})
+
+(defn populate-from-ssm
+  "Fill configuration from AWS Systems Manager. Recursively look up all parameters
+  under the given `path`.
+  com.grammarly/omniconf.ssm dependency must be on classpath."
+  [path]
+  (try-log
+   (try (require 'omniconf.ssm)
+        (catch java.io.FileNotFoundException e
+          (fail "omniconf.ssm namespace not found.
+Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
+   ((resolve 'omniconf.ssm/populate-from-ssm) path)))
 
 (defn report-configuration
   "Prints the current configuration state to `*out*`. Hide options marked as

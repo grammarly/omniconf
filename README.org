@@ -240,6 +240,80 @@
      =cfg/verify=. You will see =<SECRET>= instead. Useful for passwords, API
      keys and such.
 
+** Providing configuration as files
+
+   Omniconf can use EDN files as a configuration source. A file must contain a
+   map of options to their values, which will be merged into the config when
+   =populate-from-file= is called. The values should already have the format the
+   option requires (number, keyword); but you can also use strings so that
+   parser will be called on them.
+
+   You can hardcode the name of the file where to look for configuration (e.g.
+   =config.edn= in the current directory). It is somewhat trickier to tell the
+   name of the file dynamically. One of the solutions is to expect the
+   configuration file to be provided in one of the command-line arguments. So
+   you have to =populate-from-cmd= first, and then to populate from config file
+   if it has been provided. However, this way the configuration file will have
+   the priority over CLI arguments which is not always desirable. As a
+   workaround, you can call =populate-from-cmd= again, but only if your CLI args
+   are idempotent (i.e. they don't contain =^:concat=, see below).
+
+** Fetching configuration from AWS Systems Manager (SSM)
+
+   Since version 0.3, Omniconf supports [[https://aws.amazon.com/systems-manager/][Amazon SSM]], particularly its [[https://aws.amazon.com/systems-manager/features/][Parameter
+   Store]], as a configuration source. SSM works well as a storage for secrets ---
+   passwords, tokens, and other sensitive things that you don't want to check
+   into the source control.
+
+   To use SSM backend, you'll need to add an extra dependency:
+
+   [[https://clojars.org/com.grammarly/omniconf.ssm][https://clojars.org/com.grammarly/omniconf.ssm/latest-version.svg]]
+
+   The function =omniconf.core/populate-from-ssm= will be available now. It
+   takes =path= as an argument which will be treated as root path to nested SSM
+   parameters. For example:
+
+   #+BEGIN_SRC clojure
+(cfg/define
+  {:db {:nested {:password {:type :string
+                            :secret true}}}})
+
+(cfg/populate-from-ssm "/prod/myapp/")
+   #+END_SRC
+
+   This will fetch =/prod/myapp/db/password= parameter from SSM and save it as
+   =[:db :password]= in Omniconf.
+
+   You can also specify explicit mapping between SSM and Omniconf like this:
+
+   #+BEGIN_SRC clojure
+(cfg/define
+  {:db {:nested {:password {:type :string
+                            :secret true}}}
+   :github-token {:type :string
+                  :secret true
+                  :ssm-name "/myteam/github/oauth-token"}})
+
+(cfg/populate-from-ssm "/prod/myapp/")
+   #+END_SRC
+
+   Parameters with an absolute =:ssm-name= parameter will ignore the =path=
+   argument and will fetch the value directly by name. In case you still want
+   to use =path= for some keys but the layout in SSM differs from one in
+   Omniconf, you can use =./= as a prefix to signify that it is relative to the
+   path:
+
+   #+BEGIN_SRC clojure
+(cfg/define
+  {:db {:nested {:password {:type :string
+                            :secret true
+                            :ssm-name "./db-pass"}}}})
+
+(cfg/populate-from-ssm "/prod/myapp/")
+   #+END_SRC
+
+   This will set =[:db :password]= parameter from =/prod/myapp/db-pass=.
+
 ** Tips, tricks, and FAQ
 
 *** Are there any drawbacks? What's the catch?
@@ -301,23 +375,6 @@
     that only runs the config definition, population and verification. Look into
     example projects for inspiration.
 
-*** Providing configuration as files
-
-    EDN files are another source of configuration that Omniconf can use. They
-    must contain a map of options to their values, which will be merged into the
-    config when =populate-from-file= is called. The values should already have
-    the format the option requires (number, keyword); but you can also use strings
-    so that parser will be called on them.
-
-    It is somewhat tricky to tell Omniconf where to look for a configuration
-    file at runtime. One of the solutions is to specify the configuration file
-    in one of the command-line arguments. So you have to =populate-from-cmd=
-    first, and then to populate from config file if it has been provided.
-    However, this way the configuration file will have the priority over CLI
-    arguments which is not always desirable. As a workaround, you can call
-    =populate-from-cmd= again, but only if your CLI args are idempotent (i.e.
-    they don't contain =^:concat=).
-
 *** Special operations for EDN options
 
     Sometimes you don't want to completely overwrite an EDN value, but append to
@@ -334,7 +391,6 @@
     ...
     $ my-app --emails '^:concat ["user1@corp.org"]' --roles '^:merge {"user1@corp.org" :user}'
     #+END_SRC
-
 
 *** Custom logging for Omniconf
 
