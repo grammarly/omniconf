@@ -1,4 +1,6 @@
-* Omniconf [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf.svg?style=svg]]
+* Omniconf
+
+  I [[https://github.com/grammarly/omniconf/releases][Changelog]] I [[https://circleci.com/gh/grammarly/omniconf][https://img.shields.io/circleci/project/github/grammarly/omniconf.svg]] | [[https://versions.deps.co/grammarly/omniconf][https://versions.deps.co/grammarly/omniconf/downloads.svg]] |
 
   Command-line arguments. Environment variables. Configuration files. Java
   properties. Almost every program requires some configuration which is usually
@@ -20,6 +22,7 @@
   - CLI arguments
   - Java properties
   - [[#providing-configuration-as-files][EDN files]]
+  - [[https://github.com/grammarly/omniconf#fetching-configuration-from-aws-systems-manager-ssm][AWS SSM]]
 
 ** Rationale
 
