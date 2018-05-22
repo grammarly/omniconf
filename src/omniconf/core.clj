@@ -46,7 +46,7 @@
 (defn- log-and-rethrow
   "Log the exception using `logging-fn` and rethrow the exception. If called not
   from the REPL, clear the stacktrace of the rethrown exception."
-  [e]
+  [^Exception e]
   (binding [*out* *err*]
     (@logging-fn "ERROR:" (.getMessage e)))
   (when-not (running-in-repl?)
@@ -95,8 +95,8 @@
    :boolean {:parser parse-boolean, :checker (partial instance? Boolean)}
    :file {:parser parse-filename, :checker (partial instance? File)}
    :directory {:parser parse-filename, :checker #(and (instance? File %)
-                                                      (or (not (.exists %))
-                                                          (.isDirectory %)))}
+                                                      (or (not (.exists ^File %))
+                                                          (.isDirectory ^File %)))}
    :edn {:parser parse-edn, :checker (constantly true)}})
 
 (defn- parse
@@ -297,9 +297,9 @@
             (cond (= c ::end) (if curr-opt
                                 (conj result [curr-opt true])
                                 result)
-                  (.startsWith c "--") (recur r c (if curr-opt
-                                                    (conj result [curr-opt true])
-                                                    result))
+                  (str/starts-with? c "--") (recur r c (if curr-opt
+                                                         (conj result [curr-opt true])
+                                                         result))
                   curr-opt (recur r nil (conj result [curr-opt c]))
                   :else (fail "Malformed command-line arguments, key expected, '%s' found."
                               c)))]
@@ -405,13 +405,13 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
 
 (defn verify-file-exists
   "Check if file or directory denoted by `file` exists, raise error otherwise."
-  [key file]
+  [key, ^File file]
   (when-not (.exists file)
     (throw (ex-info (format "%s : Path %s does not exist." key file) {}))))
 
 (defn verify-directory-non-empty
   "Check if `dir` contains at least one file. Also checks that `dir` exists."
-  [key dir]
+  [key, ^File dir]
   (verify-file-exists key dir)
   (when-not (seq (.list dir))
     (throw (ex-info (format "%s : Directory %s is empty." key dir) {}))))
