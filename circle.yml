@@ -10,7 +10,6 @@ jobs:
           key: project-{{ checksum "boot.properties" }}-{{ checksum "build.boot" }}
       - run: boot test --junit-path target/junit19.xml
       - run: BOOT_CLOJURE_VERSION=1.8.0 boot test --junit-path target/junit18.xml
-      - run: BOOT_CLOJURE_VERSION=1.7.0 boot test --junit-path target/junit17.xml
       - store_test_results:
           path: target/
       - store_artifacts:
