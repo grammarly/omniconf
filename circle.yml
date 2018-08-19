@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/project
     docker:
-      - image: clojure:boot-2.7.2-alpine
+      - image: clojure:boot-2.8.1-alpine
     steps:
       - checkout
       - restore_cache:

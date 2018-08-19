@@ -9,16 +9,21 @@
 
 (def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.9.0"))
 
-(set-env!
- :dependencies (-> '[[com.amazonaws/aws-java-sdk-core "1.11.237" :scope "ssm"]
-                     [com.amazonaws/aws-java-sdk-ssm "1.11.237" :scope "ssm"]
+(def base-deps
+  [['org.clojure/clojure clj-version :scope "provided"]])
 
-                     [boot/core "2.7.2" :scope "provided"]
-                     [metosin/bat-test "0.4.0" :scope "test"]]
-                   (conj ['org.clojure/clojure clj-version :scope "provided"]))
- :source-paths #{"src/"}
- :test-paths #{"test/"}
- :target-path "target/")
+(def ssm-deps
+  '[[com.amazonaws/aws-java-sdk-core "1.11.390"]
+    [com.amazonaws/aws-java-sdk-ssm "1.11.390"]])
+
+(def dev-deps
+  '[[boot/core "2.8.1" :scope "provided"]
+    [metosin/bat-test "0.4.0" :scope "test"]])
+
+(set-env! :dependencies (concat base-deps ssm-deps dev-deps)
+          :source-paths #{"src/"}
+          :test-paths #{"test/"}
+          :target-path "target/")
 
 (require 'boot.util)
 
@@ -38,12 +43,7 @@
   []
   (comp (sift :add-resource (get-env :source-paths)
               :include #{#"^omniconf/core.clj$"})
-        (pom :dependencies
-             ;; Remove unnecessary deps
-             (remove #(let [{:keys [project scope]} (boot.util/dep-as-map %)]
-                        (or (= project 'boot/core)
-                            (#{"test" "ssm"} scope)))
-                     (get-env :dependencies)))
+        (pom :dependencies base-deps)
         (jar)
         (push :repo "clojars")
 
@@ -52,10 +52,6 @@
               :include #{#"^omniconf/ssm.clj$"})
         (pom :project 'com.grammarly/omniconf.ssm
              :description "Module for Omniconf to support Amazon SSM as a configuration source"
-             :dependencies
-             ;; Leave only SSM deps
-             (filter #(let [{:keys [scope]} (boot.util/dep-as-map %)]
-                        (= scope "ssm"))
-                     (get-env :dependencies)))
+             :dependencies ssm-deps)
         (jar)
         (push :repo "clojars")))
