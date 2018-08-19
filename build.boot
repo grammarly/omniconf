@@ -10,10 +10,7 @@
 (def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.9.0"))
 
 (set-env!
- :dependencies (-> '[[amazonica "0.3.119" :exclusions [com.amazonaws/aws-java-sdk
-                                                       com.amazonaws/amazon-kinesis-client]
-                      :scope "ssm"]
-                     [com.amazonaws/aws-java-sdk-core "1.11.237" :scope "ssm"]
+ :dependencies (-> '[[com.amazonaws/aws-java-sdk-core "1.11.237" :scope "ssm"]
                      [com.amazonaws/aws-java-sdk-ssm "1.11.237" :scope "ssm"]
 
                      [boot/core "2.7.2" :scope "provided"]

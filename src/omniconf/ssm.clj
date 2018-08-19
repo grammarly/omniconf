@@ -1,25 +1,33 @@
 (ns omniconf.ssm
-  (:require [amazonica.aws.simplesystemsmanagement :as ssm]
-            [omniconf.core :as cfg]))
+  (:require [omniconf.core :as cfg])
+  (:import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder
+           (com.amazonaws.services.simplesystemsmanagement.model
+            GetParameterRequest GetParametersByPathRequest Parameter)))
 
 (defn- get-parameters
   "Fetches parameters from SSM recursively under the given `path`. Returns a map
-  of keys to values, where keys are already split into vectors of keywords by
-  the `separator`."
-  [path separator]
-  (let [parameters (ssm/get-parameters-by-path {:path path
-                                                :recursive true
-                                                :with-decryption true})]
-    (->> (:parameters parameters)
-         (map (juxt :name :value))
+  of SSM keys to values."
+  [path]
+  (let [req (doto (GetParametersByPathRequest.)
+              (.setPath path)
+              (.setRecursive true)
+              (.setWithDecryption true))
+        resp (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
+                 (.getParametersByPath req))]
+    (->> (.getParameters resp)
+         (map (fn [^Parameter p] [(.getName p) (.getValue p)]))
          (into {}))))
 
 (defn set-value-from-ssm
   "Fetch a single value from Amazon SSM by the given `ssm-key-name` and set it in
   Omniconf by `omniconf-key`."
   [omniconf-key ssm-key-name]
-  (let [value (-> (ssm/get-parameter {:name ssm-key-name :with-decryption true})
-                  :parameter :value)]
+  (let [req (doto (GetParameterRequest.)
+              (.setName ssm-key-name)
+              (.setWithDecryption true))
+        value (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
+                  (.getParameter req)
+                  .getParameter .getValue)]
     (cfg/set omniconf-key value)))
 
 (defn populate-from-ssm
@@ -35,10 +43,9 @@
           relative-keys (into {} (get scheme true))
           absolute-keys (into {} (get scheme false))
 
-          path (if (.endsWith path "/") path (str path "/"))
-         parameters (get-parameters path "/")]
+          path (if (.endsWith path "/") path (str path "/"))]
       (when-not (empty? relative-keys)
-        (let [parameters (get-parameters path "/")]
+        (let [parameters (get-parameters path)]
           (when (and (empty? parameters) (empty? absolute-keys))
             (@@#'cfg/logging-fn "WARNING: No parameters received from SSM:" path))
 
