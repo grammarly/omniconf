@@ -373,6 +373,30 @@
 Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
    ((resolve 'omniconf.ssm/populate-from-ssm) path)))
 
+(defn populate-from-ssm-continually
+  "Like `populate-from-ssm`, but runs regularly at the specified interval. Use
+  this to dynamically reconfigure your program at runtime.
+  com.grammarly/omniconf.ssm dependency must be on classpath."
+  [path interval-in-seconds]
+  (try-log
+   (try (require 'omniconf.ssm)
+        (catch java.io.FileNotFoundException e
+          (fail "omniconf.ssm namespace not found.
+Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
+   ((resolve 'omniconf.ssm/populate-from-ssm-continually) path interval-in-seconds)))
+
+(defn stop-ssm-poller
+  "Stop the process that polls SSM for configuration, created by
+  `populate-from-ssm-continually`.
+  com.grammarly/omniconf.ssm dependency must be on classpath."
+  []
+  (try-log
+   (try (require 'omniconf.ssm)
+        (catch java.io.FileNotFoundException e
+          (fail "omniconf.ssm namespace not found.
+Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
+   ((resolve 'omniconf.ssm/stop-ssm-poller))))
+
 (defn report-configuration
   "Prints the current configuration state to `*out*`. Hide options marked as
   `:secret`."

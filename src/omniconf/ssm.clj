@@ -2,59 +2,130 @@
   (:require [omniconf.core :as cfg])
   (:import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder
            (com.amazonaws.services.simplesystemsmanagement.model
-            GetParameterRequest GetParametersByPathRequest Parameter)))
+            GetParameterRequest GetParametersByPathRequest Parameter)
+           (java.util.concurrent Executors ScheduledExecutorService
+                                 ThreadFactory TimeUnit)))
+
+(defn- get-parameter
+  "Fetch a single value from Amazon SSM by the given `ssm-key-name`."
+  [ssm-key-name]
+  (let [req (doto (GetParameterRequest.)
+              (.setName ssm-key-name)
+              (.setWithDecryption true))]
+    (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
+        (.getParameter req)
+        .getParameter)))
 
 (defn- get-parameters
-  "Fetches parameters from SSM recursively under the given `path`. Returns a map
-  of SSM keys to values."
+  "Fetch parameters from SSM recursively under the given `path`."
   [path]
-  (let [req (doto (GetParametersByPathRequest.)
-              (.setPath path)
-              (.setRecursive true)
-              (.setWithDecryption true))
-        resp (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
-                 (.getParametersByPath req))]
-    (->> (.getParameters resp)
-         (map (fn [^Parameter p] [(.getName p) (.getValue p)]))
-         (into {}))))
+  (loop [next-token nil, result []]
+    (let [req (doto (GetParametersByPathRequest.)
+                (.setPath path)
+                (.setRecursive true)
+                (.setNextToken next-token)
+                (.setWithDecryption true))
+          resp (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
+                   (.getParametersByPath req))
+          result (into result (.getParameters resp))
+          next-token (.getNextToken resp)]
+      (if next-token
+        (recur next-token result)
+        result))))
 
 (defn set-value-from-ssm
   "Fetch a single value from Amazon SSM by the given `ssm-key-name` and set it in
   Omniconf by `omniconf-key`."
   [omniconf-key ssm-key-name]
-  (let [req (doto (GetParameterRequest.)
-              (.setName ssm-key-name)
-              (.setWithDecryption true))
-        value (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
-                  (.getParameter req)
-                  .getParameter .getValue)]
-    (cfg/set omniconf-key value)))
+  (cfg/set omniconf-key (get-parameter ssm-key-name)))
+
+(def ^:private ssm-params-cache (atom {}))
 
 (defn populate-from-ssm
   "Fill configuration from AWS Systems Manager. Recursively look up all parameters
-  under the given `path`."
-  [^String path]
-  (try
-    (let [scheme
-          (->> (#'cfg/flatten-and-transpose-scheme :ssm @@#'cfg/config-scheme)
-               (remove #(:nested (second %)))
-               (group-by #(.startsWith ^String (first %) "./")))
+  under the given `path`. If `only-modified?` is true, it will update only those
+  parameters that were modified since the last time we checked SSM."
+  ([path] (populate-from-ssm path false))
+  ([^String path, only-modified?]
+   (try
+     (let [scheme
+           (->> (#'cfg/flatten-and-transpose-scheme :ssm @@#'cfg/config-scheme)
+                (remove #(:nested (second %)))
+                (group-by #(.startsWith ^String (first %) "./")))
 
-          relative-keys (into {} (get scheme true))
-          absolute-keys (into {} (get scheme false))
+           relative-keys (into {} (get scheme true))
+           absolute-keys (into {} (get scheme false))
 
-          path (if (.endsWith path "/") path (str path "/"))]
-      (when-not (empty? relative-keys)
-        (let [parameters (get-parameters path)]
-          (when (and (empty? parameters) (empty? absolute-keys))
-            (@@#'cfg/logging-fn "WARNING: No parameters received from SSM:" path))
+           path (if (.endsWith path "/") path (str path "/"))
+           relative-params (get-parameters path)
+           absolute-params (mapv get-parameter (keys absolute-keys))
 
-          (doseq [[ssm-key spec] relative-keys
-                  :let [full-key (str path (subs ssm-key 2))
-                        value (get parameters full-key)]
-                  :when value]
-            (cfg/set (:name spec) value))))
+           cache @ssm-params-cache
+           new-cache (->> (concat relative-params absolute-params)
+                          (map (fn [^Parameter p] [(.getName p) p]))
+                          (into {}))
+           modified-param?
+           (fn [^Parameter p]
+             (let [cached (get cache (.getName p))]
+               (or (nil? cached) (not= (.getLastModifiedDate p)
+                                       (.getLastModifiedDate ^Parameter cached)))))
+           params->kv
+           (fn [params]
+             (->> params
+                  (keep (fn [^Parameter p]
+                          (when (or (not only-modified?) (modified-param? p))
+                            [(.getName p) (.getValue p)])))
+                  (into {})))
 
-      (doseq [[ssm-key spec] absolute-keys]
-        (set-value-from-ssm (:name spec) ssm-key)))
-    (catch clojure.lang.ExceptionInfo e (#'cfg/log-and-rethrow e))))
+           relative-kv (params->kv relative-params)
+           relative-kvs (for [[ssm-key spec] relative-keys
+                              :let [full-key (str path (subs ssm-key 2))
+                                    value (get relative-kv full-key)]
+                              :when value]
+                          [(:name spec) (#'cfg/parse spec value)])
+
+           absolute-kv (params->kv absolute-params)
+           absolute-kvs (for [[ssm-key spec] absolute-keys
+                              :let [value (get absolute-kv ssm-key)]]
+                          [(:name spec) (#'cfg/parse spec value)])
+
+           values-cnt (+ (count relative-kvs) (count absolute-kvs))]
+
+       (when (or (pos? values-cnt) (not only-modified?))
+         (@@#'cfg/logging-fn (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
+                                     path values-cnt)))
+
+       (doseq [[k v] relative-kvs] (cfg/set k v))
+       (doseq [[k v] absolute-kvs] (cfg/set k v))
+
+       (reset! ssm-params-cache new-cache))
+     (catch clojure.lang.ExceptionInfo e (#'cfg/log-and-rethrow e)))))
+
+(defonce ^:private ssm-poller (atom nil))
+
+(defn- make-scheduled-executor []
+  (Executors/newSingleThreadScheduledExecutor
+   (reify ThreadFactory
+     (newThread [_ r] (doto (Thread. r "omniconf-ssm-polling-thread")
+                        (.setDaemon true))))))
+
+(defn populate-from-ssm-continually
+  "Like `populate-from-ssm`, but runs regularly at the specified interval. Use
+  this to dynamically reconfigure your program at runtime."
+  [path interval-in-seconds]
+  (populate-from-ssm path)
+  (let [poller (or @ssm-poller (reset! ssm-poller (make-scheduled-executor)))]
+    (.scheduleAtFixedRate ^ScheduledExecutorService poller
+                          #(populate-from-ssm path true)
+                          interval-in-seconds interval-in-seconds TimeUnit/SECONDS)))
+
+(defn stop-ssm-poller
+  "Stop the process that polls SSM for configuration, created by
+  `populate-from-ssm-continually`."
+  []
+  (when-let [poller @ssm-poller]
+    (.shutdown ^ScheduledExecutorService poller)
+    (reset! ssm-poller nil)))
+
+#_(populate-from-ssm-continually "/foo/bar/baz" 10)
+#_(stop-ssm-poller)
