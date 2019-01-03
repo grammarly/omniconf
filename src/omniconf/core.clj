@@ -260,9 +260,13 @@
    (populate-from-env))
   ([]
    (try-log
-    (doseq [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)]
-      (when-let [value (clj/get (System/getenv) env-name)]
-        (set (:name spec) (parse spec value))))))
+    (let [env (System/getenv)
+          kvs (for [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)
+                    :let [value (clj/get env env-name)]
+                    :when value]
+                [(:name spec) (parse spec value)])]
+      (@logging-fn (format "Populating Omniconf from env: %s value(s)" (count kvs)))
+      (doseq [[k v] kvs] (set k v)))))
   {:forms '([])})
 
 (defn print-cli-help
@@ -307,6 +311,9 @@
         (print-cli-help)
         (System/exit 0))
 
+      (@logging-fn (format "Populating Omniconf from CLI args: %s value(s)"
+                           (count grouped-opts)))
+
       (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
         (doseq [[k v] grouped-opts]
           (if-let [spec (clj/get transposed-scheme k)]
@@ -321,17 +328,21 @@
    (populate-from-file edn-file))
   ([edn-file]
    (try-log
-    (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
-      (letfn [(walk [prefix spec-root tree]
-                (doseq [[key value] tree]
-                  (let [path (conj prefix key)
-                        spec (clj/get spec-root key)]
-                    (if (:nested spec)
-                      (walk path (:nested spec) value)
-                      (set path (if (string? value)
-                                  (parse spec value)
-                                  value))))))]
-        (walk [] @config-scheme (edn/read in))))))
+    (let [kvs (volatile! {})]
+      (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
+        (letfn [(walk [prefix spec-root tree]
+                  (doseq [[key value] tree]
+                    (let [path (conj prefix key)
+                          spec (clj/get spec-root key)]
+                      (if (:nested spec)
+                        (walk path (:nested spec) value)
+                        (vswap! kvs assoc path (if (string? value)
+                                                 (parse spec value)
+                                                 value))))))]
+          (walk [] @config-scheme (edn/read in))))
+      (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
+                           edn-file (count @kvs)))
+      (doseq [[k v] @kvs] (set k v)))))
   {:forms '([edn-file])})
 
 (defn populate-from-properties
@@ -341,9 +352,13 @@
    (populate-from-properties))
   ([]
    (try-log
-     (doseq [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)]
-       (when-let [value (System/getProperty prop-name)]
-         (set (:name spec) (parse spec value))))))
+    (let [kvs (for [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)
+                    :let [value (System/getProperty prop-name)]
+                    :when value]
+                [(:name spec) (parse spec value)])]
+      (@logging-fn (format "Populating Omniconf from Java properties: %s value(s)"
+                           (count kvs)))
+      (doseq [[k v] kvs] (set k v)))))
   {:forms '([])})
 
 (defn populate-from-ssm
@@ -362,8 +377,9 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
   "Prints the current configuration state to `*out*`. Hide options marked as
   `:secret`."
   []
-  (@logging-fn "Omniconf configuration:\n"
+  (@logging-fn
    (with-out-str
+     (println "Omniconf configuration:")
      (pprint
       (reduce (fn [values-map [val-path val-spec]]
                 (if (and (:secret val-spec) (get-in values-map val-path))
