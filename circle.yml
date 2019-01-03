@@ -3,12 +3,13 @@ jobs:
   build:
     working_directory: ~/project
     docker:
-      - image: clojure:boot-2.8.1-alpine
+      - image: clojure:boot-2.8.2-alpine
     steps:
       - checkout
       - restore_cache:
           key: project-{{ checksum "boot.properties" }}-{{ checksum "build.boot" }}
-      - run: boot test --junit-path target/junit19.xml
+      - run: boot test --junit-path target/junit110.xml
+      - run: BOOT_CLOJURE_VERSION=1.9.0 boot test --junit-path target/junit19.xml
       - run: BOOT_CLOJURE_VERSION=1.8.0 boot test --junit-path target/junit18.xml
       - store_test_results:
           path: target/
