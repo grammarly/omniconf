@@ -1,33 +1,32 @@
 (ns omniconf.ssm
-  (:require [omniconf.core :as cfg])
-  (:import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder
-           (com.amazonaws.services.simplesystemsmanagement.model
-            GetParameterRequest GetParametersByPathRequest Parameter)))
+  (:require
+    [cognitect.aws.client.api :as aws]
+    [omniconf.core :as cfg]))
 
-(defn- get-parameters
-  "Fetches parameters from SSM recursively under the given `path`. Returns a map
-  of SSM keys to values."
+(defn get-parameters
   [path]
-  (let [req (doto (GetParametersByPathRequest.)
-              (.setPath path)
-              (.setRecursive true)
-              (.setWithDecryption true))
-        resp (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
-                 (.getParametersByPath req))]
-    (->> (.getParameters resp)
-         (map (fn [^Parameter p] [(.getName p) (.getValue p)]))
-         (into {}))))
+  (let [ssm (aws/client {:api :ssm})
+        op {:op :GetParametersByPath
+            :request {:Path path, :Recursive true, :WithDecryption true}}]
+    (loop [parameters {}
+           {:keys [Parameters NextToken]} (aws/invoke ssm op)]
+      (let [parameters (reduce #(assoc %1 (:Name %2) (:Value %2))
+                               parameters
+                               Parameters)]
+        (if NextToken
+          (recur parameters
+                 (aws/invoke ssm (assoc-in op [:request :NextToken] NextToken)))
+          parameters)))))
 
 (defn set-value-from-ssm
   "Fetch a single value from Amazon SSM by the given `ssm-key-name` and set it in
   Omniconf by `omniconf-key`."
   [omniconf-key ssm-key-name]
-  (let [req (doto (GetParameterRequest.)
-              (.setName ssm-key-name)
-              (.setWithDecryption true))
-        value (-> (AWSSimpleSystemsManagementClientBuilder/defaultClient)
-                  (.getParameter req)
-                  .getParameter .getValue)]
+  (let [ssm (aws/client {:api :ssm})
+        value (get-in (aws/invoke ssm {:op :GetParameter
+                                       :request {:Name ssm-key-name,
+                                                 :WithDecryption true}})
+                      [:Parameter :Value])]
     (cfg/set omniconf-key value)))
 
 (defn populate-from-ssm
