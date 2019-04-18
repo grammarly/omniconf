@@ -1,4 +1,16 @@
-{:existing-file-option "test/omniconf/test-config.edn"
- :nonempty-dir-option "test/omniconf/"
- :required-option "foobar"
- :nested-option {:file "./"}}
+{:required-option "foo"
+ :string-option "bar"
+ :integer-option 42
+ :edn-option "^:concat (3)"
+ :file-option "build.boot"
+ :directory-option "test"
+ :option-with-default 2048
+ :conditional-option "dummy"
+ :option-from-set "baz"
+ :delayed-option 10
+ :renamed-option true
+ :nested-option {:more {:two "two"}}
+ :boolean-option true
+
+ :existing-file-option "test/omniconf/test-config.edn"
+ :nonempty-dir-option "test/omniconf/"}

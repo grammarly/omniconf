@@ -122,6 +122,35 @@
   (cfg/populate-from-properties)
   (check-basic-options))
 
+(deftest basic-options-map
+  (reset! @#'cfg/config-values (sorted-map))
+  (#'cfg/fill-default-values)
+  (cfg/populate-from-map {:nested-option {:more {}}})
+  ;; Hack because setting from map doesn't allow overriding whole nested maps.
+  (cfg/set :nested-option :more {})
+  (cfg/populate-from-map {:required-option "foo"
+                          :string-option "bar"
+                          :integer-option 42
+                          :edn-option "^:concat (3)"
+                          :file-option "build.boot"
+                          :directory-option "test"
+                          :option-with-default 2048
+                          :conditional-option "dummy"
+                          :option-from-set "baz"
+                          :delayed-option 10
+                          :renamed-option true
+                          :nested-option {:more {:two "two"}}
+                          :boolean-option true})
+  (check-basic-options))
+
+(deftest basic-options-file
+  (reset! @#'cfg/config-values (sorted-map))
+  (#'cfg/fill-default-values)
+  ;; Hack because setting from file doesn't allow overriding whole nested maps.
+  (cfg/set :nested-option :more {})
+  (cfg/populate-from-file "test/omniconf/test-config.edn")
+  (check-basic-options))
+
 (deftest extended-functionality
   (reset! @#'cfg/config-values (sorted-map))
   (#'cfg/fill-default-values)
@@ -181,6 +210,10 @@
   (testing "print-cli-help"
     (is (not= "" (with-out-str (#'cfg/print-cli-help)))))
 
+  (testing "with-options"
+    (cfg/with-options [option-with-default]
+      (is (= 1024 option-with-default))))
+
   (testing "populate-from-env"
     (cfg/populate-from-env)
     (cfg/verify :silent true))
@@ -188,10 +221,6 @@
   (testing "populate-from-file"
     (cfg/populate-from-file "test/omniconf/test-config.edn")
     (cfg/verify :silent true))
-
-  (testing "with-options"
-    (cfg/with-options [option-with-default]
-      (is (= 1024 option-with-default))))
 
   (testing "parsing sanity-check"
     (is (thrown? Exception (cfg/populate-from-cmd ["--nested-option" "foo"])))

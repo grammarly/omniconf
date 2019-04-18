@@ -14,7 +14,7 @@
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint cl-format]]
             [clojure.string :as str])
-  (:import java.io.File))
+  (:import (java.io File PushbackReader)))
 
 ;; Plumbing
 
@@ -321,6 +321,31 @@
             (@logging-fn "WARNING: Unrecognized option:" k)))))))
   {:forms '([cmd-args])})
 
+(defn- get-config-kvs-from-map
+  "Walks the supplied map and reformats it in the form of config keys to values."
+  [config-map]
+  (try-log
+   (let [kvs (volatile! {})]
+     (letfn [(walk [prefix spec-root tree]
+               (doseq [[key value] tree]
+                 (let [path (conj prefix key)
+                       spec (clj/get spec-root key)]
+                   (if (:nested spec)
+                     (walk path (:nested spec) value)
+                     (vswap! kvs assoc path (if (string? value)
+                                              (parse spec value)
+                                              value))))))]
+       (walk [] @config-scheme config-map))
+     @kvs)))
+
+(defn populate-from-map
+  "Fill configuration from a map passed directly as value."
+  [config-map]
+  (let [kvs (get-config-kvs-from-map config-map)]
+    (@logging-fn (format "Populating Omniconf from map: %s value(s)"
+                         (count kvs)))
+    (doseq [[k v] kvs] (set k v))))
+
 (defn populate-from-file
   "Fill configuration from an edn file."
   ([edn-file quit-on-error]
@@ -328,21 +353,12 @@
    (populate-from-file edn-file))
   ([edn-file]
    (try-log
-    (let [kvs (volatile! {})]
-      (with-open [in (java.io.PushbackReader. (io/reader edn-file))]
-        (letfn [(walk [prefix spec-root tree]
-                  (doseq [[key value] tree]
-                    (let [path (conj prefix key)
-                          spec (clj/get spec-root key)]
-                      (if (:nested spec)
-                        (walk path (:nested spec) value)
-                        (vswap! kvs assoc path (if (string? value)
-                                                 (parse spec value)
-                                                 value))))))]
-          (walk [] @config-scheme (edn/read in))))
+    (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
+                       (edn/read in))
+          kvs (get-config-kvs-from-map config-map)]
       (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
-                           edn-file (count @kvs)))
-      (doseq [[k v] @kvs] (set k v)))))
+                           edn-file (count kvs)))
+      (doseq [[k v] kvs] (set k v)))))
   {:forms '([edn-file])})
 
 (defn populate-from-properties
