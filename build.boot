@@ -13,8 +13,8 @@
   [['org.clojure/clojure clj-version :scope "provided"]])
 
 (def ssm-deps
-  '[[com.amazonaws/aws-java-sdk-core "1.11.476"]
-    [com.amazonaws/aws-java-sdk-ssm "1.11.476"]])
+  '[[com.amazonaws/aws-java-sdk-core "1.11.536"]
+    [com.amazonaws/aws-java-sdk-ssm "1.11.536"]])
 
 (def dev-deps
   '[[boot/core "2.8.2" :scope "provided"]
