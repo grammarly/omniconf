@@ -2,6 +2,11 @@
 
 ### master (unreleased)
 
+- [#13] Fetch all SSM parameters for a given path, following NextToken.
+- Log how many config values were provided by each source.
+- Add support for continuous SSM polling for dynamic reconfiguration.
+- Add `populate-from-map` function.
+
 ### 0.3.2 (2018-08-20)
 
 Stop depending on Amazonica, use AWS Java SDK directly.
