@@ -1,6 +1,6 @@
 * Omniconf
 
-  I [[CHANGELOG.md][https://img.shields.io/badge/-changelog-blue.svg]] I [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf/tree/master.png]] I [[https://clojars.org/com.grammarly/omniconf][8.4k downloads]] I
+  I [[CHANGELOG.md][https://img.shields.io/badge/-changelog-blue.svg]] I [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf/tree/master.png]] I [[https://clojars.org/com.grammarly/omniconf][11.7k downloads]] I
 
   Command-line arguments. Environment variables. Configuration files. Java
   properties. Almost every program requires some configuration which is usually
@@ -22,7 +22,7 @@
   - CLI arguments
   - Java properties
   - [[#providing-configuration-as-files][EDN files]]
-  - [[https://github.com/grammarly/omniconf#fetching-configuration-from-aws-systems-manager-ssm][AWS SSM]]
+  - [[https://github.com/grammarly/omniconf#fetching-configuration-from-aws-systems-manager-ssm][AWS SSM (+dynamic reconfiguration)]]
 
 ** Rationale
 
@@ -38,11 +38,11 @@
       option is set from --- environment variables, CLI arguments, or config
       files. It is uniformly initialized, verified, and accessed as regular
       Clojure data.
-   3. *Maximum verification.* We don't want to see FileNotFound stacktraces in
-      the middle of your program run. The whole configuration should be checked
-      early and automatically before the rest of the code is executed. If there
-      are any problems with it, a helpful message should be presented to the
-      user.
+   3. *Maximum verification.* We don't want to see NumberFormatException
+      stacktraces in the middle of your program run because of a typo in the
+      environment variable. The whole configuration should be checked early and
+      automatically before the rest of the code is executed. If there are any
+      problems with it, a helpful message should be presented to the user.
 
 ** Installation
 
@@ -160,8 +160,8 @@
      string, and also verifies that the resulting value has the correct Clojure
      type.
 
-     Boolean types have some special treatment. When setting them from the
-     command line, one can omit the value completely.
+     Boolean types have special treatment. When setting them from the command
+     line, one can omit the value completely.
 
      : (cfg/define {:foo {:type :boolean}, :bar {:type :boolean}})
      : ...
@@ -241,7 +241,7 @@
 
    - =:secret= --- if true, the value of this option won't be printed out by
      =cfg/verify=. You will see =<SECRET>= instead. Useful for passwords, API
-     keys and such.
+     keys, and such.
 
 ** Providing configuration as files
 
@@ -317,6 +317,32 @@
 
    This will set =[:db :password]= parameter from =/prod/myapp/db-pass=.
 
+*** Dynamic reconfiguration from SSM
+
+    Unlike environment variables and command-line arguments, SSM Parameter Store
+    values can change independently as your program is running. You might want
+    to use this, so that you can change some configuration without restarting
+    the program. There are plenty of usecases for this, like switching the
+    upstream hostname on the fly, or gradually changing the rate of requests to
+    an experimental server you are testing.
+
+    To tap into this functionality, use =populate-from-ssm-continually= instead
+    of =populate-from-ssm=. It accepts the same =path= argument, and an extra
+    one --- interval in seconds between polling SSM. Polling is used because SSM
+    doesn't expose an event-based API for this; but it's not too bad since you'd
+    probably set the interval to 5-10 seconds, so the overhead of polling is not
+    too big. Also, Omniconf would report setting only the values that actually
+    has changed.
+
+    #+BEGIN_SRC clojure
+;; Poll values under /prod/myapp/ prefix (and all absolute :ssm-name values too) every 10 seconds.
+(cfg/populate-from-ssm-continually "/prod/myapp/" 10)
+    #+END_SRC
+
+    Note that for now, the verification step is not re-run after fetching
+    updated values from SSM, so it is possible to break =:verifier= invariants
+    with this.
+
 ** Tips, tricks, and FAQ
 
 *** Are there any drawbacks? What's the catch?
@@ -326,15 +352,10 @@
     they are re-implementing half of Omniconf functionality on top of Environ
     anyway (like we did before).
 
-    Omniconf is not suited for dynamic configuration. If you need options to be
-    changed during runtime, values coming from some external dynamic sources,
-    you are better off using a proper solution for that, e.g. Zookeeper together
-    with some wrapper library.
-
-    Omniconf configuration map is a global mutable singleton. It is OK if you
-    use Omniconf like we suggest to --- populate the values before any
-    application code is executed, and then never change them again --- but there
-    might be usecases where this approach does not fit.
+    Omniconf configuration map is a global mutable singleton. It adds a bit of
+    convenience that you don't have to drag the config map around, or require it
+    in every namespace. However, there might be usecases where this approach
+    does not fit.
 
     Omniconf is an application-level tool. You most likely don't want to make
     your library depend on it, forcing the library users to configure through
@@ -387,26 +408,18 @@
 *** Custom logging for Omniconf
 
     By default, Omniconf prints errors and final configuration map to standard
-    output. But if you have many servers, it may not be very convenient to
-    connect to each to see if all of them are correctly configured. Perhaps you
-    have a Logstash forwarder running on the instance, or some other centralized
-    logging solution. So, you can call =cfg/set-logging-fn= to make Omniconf use
-    it instead of =println=. For Timbre 4.3.1 it will be something like this:
+    output. If you want it to use a special logging solution, call
+    =cfg/set-logging-fn= and provide a vararg function for Omniconf to use
+    it instead of =println=. For example:
 
     #+BEGIN_SRC clojure
 (require '[taoensso.timbre :as log])
-(cfg/set-logging-fn (fn [& args]
-                      (log/-log! log/*config* :info "omniconf.core"
-                                 nil nil :p nil (delay (vec args)) nil)))
+(cfg/set-logging-fn (fn [& args] (log/info (str/join " " args))))
     #+END_SRC
-
-    Note that this will only work if you are able to initialize logging without
-    any data from Omniconf. This is a chicken-and-egg problem that doesn't have
-    a proper solution, as it is very case-specific.
 
 ** License
 
-   © Copyright 2016-2018 Grammarly, Inc.
+   © Copyright 2016-2019 Grammarly, Inc.
 
    Licensed under the Apache License, Version 2.0 (the "License"); you may not
    use this file except in compliance with the License. You may obtain a copy of

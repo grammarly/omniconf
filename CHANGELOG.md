@@ -2,7 +2,8 @@
 
 ### master (unreleased)
 
-- [#13] Fetch all SSM parameters for a given path, following NextToken.
+- [#13](https://github.com/grammarly/omniconf/issues/13) Fetch all SSM
+  parameters for a given path, following NextToken.
 - Log how many config values were provided by each source.
 - Add support for continuous SSM polling for dynamic reconfiguration.
 - Add `populate-from-map` function.
