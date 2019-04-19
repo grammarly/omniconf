@@ -6,10 +6,6 @@ Navigate to this directory and execute:
 
 Experiment with configuration to change it, break it etc.
 
-You can also run only the verification step:
-
-``` lein verify --required-option qux --option-from-set bar ```
-
 Run help to see all options:
 
 ``` lein run -- --help ```

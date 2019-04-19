@@ -2,7 +2,7 @@
   (:require [omniconf.core :as cfg])
   (:gen-class))
 
-(defn init-config [cli-args quit-on-error]
+(defn init-config [cli-args]
   (cfg/define
     {:help {:description "prints this help message"
             :help-name "my-script"
@@ -61,22 +61,17 @@
                                                     :default "one"}
                                               :two {:type :string}}}}}})
 
-  (cfg/populate-from-cmd cli-args quit-on-error)
+  (cfg/populate-from-cmd cli-args)
   (when-let [conf-file (cfg/get :conf-file)]
     (cfg/populate-from-file conf-file))
-  (cfg/populate-from-env quit-on-error)
+  (cfg/populate-from-env)
 
-  (cfg/verify :quit-on-error quit-on-error))
+  (cfg/verify))
 
 (defn run-application []
   (println "Now actually starting the app...")
   (println "Option-from-set is" (cfg/get :option-from-set)))
 
-(defn verify
-  "Only sets up config and verifies it, without running application code."
-  [& args]
-  (init-config args true))
-
 (defn -main [& args]
-  (init-config args true)
+  (init-config args)
   (run-application))

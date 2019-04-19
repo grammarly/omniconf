@@ -10,10 +10,6 @@ Navigate to this directory and execute:
 
 Experiment with configuration to change it, break it etc.
 
-You can also run only the verification step:
-
-``` boot verify -a '--required-option foo --option-from-set bar --boolean-option' ```
-
 Run help to see all options:
 
 ``` boot run -a '--help' ```

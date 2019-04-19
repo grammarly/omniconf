@@ -367,17 +367,6 @@
   ...)
     #+END_SRC
 
-*** Verify configuration during builds
-
-    It may be useful to run =cfg/verify= as a part of the build step. If you
-    provide all the options during that step as you do when running the program,
-    then you will be able catch the misconfiguration errors before the app is
-    deployed.
-
-    To do this properly you have to create another entry point into your program
-    that only runs the config definition, population and verification. Look into
-    example projects for inspiration.
-
 *** Special operations for EDN options
 
     Sometimes you don't want to completely overwrite an EDN value, but append to
