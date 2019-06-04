@@ -1,6 +1,6 @@
 # Changelog
 
-### master (unreleased)
+### 0.4.0 (2019-06-04)
 
 - [#13](https://github.com/grammarly/omniconf/issues/13) Fetch all SSM
   parameters for a given path, following NextToken.
