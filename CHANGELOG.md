@@ -1,5 +1,10 @@
 # Changelog
 
+### master (unreleased)
+
+- [#14](https://github.com/grammarly/omniconf/issues/13) Fix bug in SSM poller
+  where values configured by absolute path would be erased.
+
 ### 0.4.0 (2019-06-04)
 
 - [#13](https://github.com/grammarly/omniconf/issues/13) Fetch all SSM
