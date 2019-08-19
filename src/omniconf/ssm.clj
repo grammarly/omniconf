@@ -81,12 +81,13 @@
            relative-kvs (for [[ssm-key spec] relative-keys
                               :let [full-key (str path (subs ssm-key 2))
                                     value (get relative-kv full-key)]
-                              :when value]
+                              :when (some? value)]
                           [(:name spec) (#'cfg/parse spec value)])
 
            absolute-kv (params->kv absolute-params)
            absolute-kvs (for [[ssm-key spec] absolute-keys
-                              :let [value (get absolute-kv ssm-key)]]
+                              :let [value (get absolute-kv ssm-key)]
+                              :when (some? value)]
                           [(:name spec) (#'cfg/parse spec value)])
 
            values-cnt (+ (count relative-kvs) (count absolute-kvs))]
