@@ -1,6 +1,6 @@
 (task-options!
  pom  {:project     'com.grammarly/omniconf
-       :version     "0.4.1-SNAPSHOT"
+       :version     "0.4.1"
        :description "Configuration library for Clojure that favors explicitness"
        :license     {"Apache License, Version 2.0"
                      "http://www.apache.org/licenses/LICENSE-2.0"}
