@@ -2,8 +2,12 @@
 
 ### master (unreleased)
 
-- [#14](https://github.com/grammarly/omniconf/issues/13) Fix bug in SSM poller
+### 0.4.1 (2019-12-06)
+
+- [#14](https://github.com/grammarly/omniconf/issues/14) Fix bug in SSM poller
   where values configured by absolute path would be erased.
+- [#15](https://github.com/grammarly/omniconf/issues/15) Force newer Jackson
+  dependencies to protect from CVE-2018-14719.
 
 ### 0.4.0 (2019-06-04)
 

@@ -1,6 +1,6 @@
 * Omniconf
 
-  I [[CHANGELOG.md][https://img.shields.io/badge/-changelog-blue.svg]] I [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf/tree/master.png]] I [[https://clojars.org/com.grammarly/omniconf][13.1k downloads]] I
+  I [[CHANGELOG.md][https://img.shields.io/badge/-changelog-blue.svg]] I [[https://circleci.com/gh/grammarly/omniconf][https://circleci.com/gh/grammarly/omniconf/tree/master.png]] I [[https://clojars.org/com.grammarly/omniconf][14.4k downloads]] I
 
   Command-line arguments. Environment variables. Configuration files. Java
   properties. Almost every program requires some configuration which is usually
@@ -32,8 +32,8 @@
       configuration value (e.g. from ENV) at any point of time from any place in
       the code. This makes it impossible to list all configuration options that
       the program uses without reading the entire source. Omniconf requires you
-      to declare all possible configuration upfront, at the beginning of the
-      program execution.
+      to declare all possible configuration options upfront, at the beginning of
+      the program execution.
    2. *All configuration sources must be unified.* It shouldn't matter where the
       option is set from --- environment variables, CLI arguments, or config
       files. It is uniformly initialized, verified, and accessed as regular
