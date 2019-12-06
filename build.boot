@@ -13,8 +13,12 @@
   [['org.clojure/clojure clj-version :scope "provided"]])
 
 (def ssm-deps
-  '[[com.amazonaws/aws-java-sdk-core "1.11.536"]
-    [com.amazonaws/aws-java-sdk-ssm "1.11.536"]])
+  '[[com.amazonaws/aws-java-sdk-core "1.11.536"
+     :exclusions [com.fasterxml.jackson.core/jackson-databind
+                  com.fasterxml.jackson.dataformat/jackson-dataformat-cbor]] ;; Use newer version explicitly due to security risks.
+    [com.amazonaws/aws-java-sdk-ssm "1.11.536"]
+    [com.fasterxml.jackson.core/jackson-databind "2.10.1"]
+    [com.fasterxml.jackson.dataformat/jackson-dataformat-cbor "2.10.1"]])
 
 (def dev-deps
   '[[boot/core "2.8.2" :scope "provided"]
