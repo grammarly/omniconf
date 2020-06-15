@@ -7,22 +7,22 @@
        :url         "https://github.com/grammarly/omniconf"
        :scm         {:url "https://github.com/grammarly/omniconf"}})
 
-(def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.10.0"))
+(def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.10.1"))
 
 (def base-deps
   [['org.clojure/clojure clj-version :scope "provided"]])
 
 (def ssm-deps
-  '[[com.amazonaws/aws-java-sdk-core "1.11.536"
+  '[[com.amazonaws/aws-java-sdk-core "1.11.802"
      :exclusions [com.fasterxml.jackson.core/jackson-databind
                   com.fasterxml.jackson.dataformat/jackson-dataformat-cbor]] ;; Use newer version explicitly due to security risks.
-    [com.amazonaws/aws-java-sdk-ssm "1.11.536"]
+    [com.amazonaws/aws-java-sdk-ssm "1.11.802"]
     [com.fasterxml.jackson.core/jackson-databind "2.10.1"]
     [com.fasterxml.jackson.dataformat/jackson-dataformat-cbor "2.10.1"]])
 
 (def dev-deps
   '[[boot/core "2.8.2" :scope "provided"]
-    [metosin/bat-test "0.4.2" :scope "test"]])
+    [metosin/bat-test "0.4.4" :scope "test"]])
 
 (set-env! :dependencies (concat base-deps ssm-deps dev-deps)
           :source-paths #{"src/"}
