@@ -1,6 +1,14 @@
 # Changelog
 
-### master (unreleased)
+### 0.4.2-SNAPSHOT (unreleased)
+
+- `:default` field for an option can now be a nullary function that is invoked
+  during the verification phase to generate the actual value based on other
+  config values. For now, this feature is opt-in to preserve the backwards
+  compatibility (for hypothetical cases where someone would use Omniconf
+  defaults to store functions). You need to call
+  `(cfg/enable-functions-as-defaults)` for this feature to work, but this will
+  change in the next minor version.
 
 ### 0.4.1 (2019-12-06)
 

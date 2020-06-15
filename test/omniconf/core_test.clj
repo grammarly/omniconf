@@ -3,6 +3,8 @@
             [clojure.java.io :as io]
             [clojure.test :refer :all]))
 
+(cfg/enable-functions-as-defaults)
+
 (cfg/define
   {:help {:description "prints this help message"
           :help-name "my-script"
@@ -66,6 +68,13 @@
                             :more {:nested {:one {:type :string
                                                   :default "one"}
                                             :two {:type :string}}}}}
+   :nested-default-fn {:nested {:width {:type :number
+                                        :default 10}
+                                :height {:type :number
+                                         :default 20}
+                                :area {:type :number
+                                       :default #(* (cfg/get :nested-default-fn :width)
+                                                    (cfg/get :nested-default-fn :height))}}}
    :delayed-nested {:nested {:delayed {:default "foo"
                                        :delayed-transform #(str % "bar")}}}})
 
@@ -225,4 +234,21 @@
   (testing "parsing sanity-check"
     (is (thrown? Exception (cfg/populate-from-cmd ["--nested-option" "foo"])))
     (is (thrown? Exception (cfg/populate-from-cmd ["--integer-option" "garbage"]))))
+
+  (testing "default functions"
+    (is (= {:area 200, :height 20, :width 10} (cfg/get :nested-default-fn)))
+
+    (reset! @#'cfg/config-values (sorted-map))
+    (#'cfg/fill-default-values)
+    (cfg/populate-from-file "test/omniconf/test-config.edn")
+    (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200}})
+    (cfg/verify)
+    (is (= {:area 20000, :height 200, :width 100} (cfg/get :nested-default-fn)))
+
+    (reset! @#'cfg/config-values (sorted-map))
+    (#'cfg/fill-default-values)
+    (cfg/populate-from-file "test/omniconf/test-config.edn")
+    (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200 :area 42}})
+    (cfg/verify)
+    (is (= {:area 42, :height 200, :width 100} (cfg/get :nested-default-fn))))
   )

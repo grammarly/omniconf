@@ -30,10 +30,17 @@
   "Function that is called to print debugging information and errors."
   (atom println))
 
+(def ^:private invoke-default-fns? (atom false))
+
 (defn set-logging-fn
   "Change `println` to a custom logging function that Omniconf will use."
   [fn]
   (reset! logging-fn fn))
+
+(defn enable-functions-as-defaults
+  "Allow invoking functions passed to :default field for the options."
+  []
+  (reset! invoke-default-fns? true))
 
 (defn- running-in-repl?
   "Return true when this function is executed from within the REPL."
@@ -123,11 +130,17 @@
   [& ks]
   (let [ks (if (sequential? (first ks)) (first ks) ks)
         value (clj/get-in @config-values ks)]
-    (if (delay? value)
-      (let [calc-value (force value)]
-        (swap! config-values assoc-in ks calc-value)
-        calc-value)
-      value)))
+    (cond (delay? value)
+          (let [calc-value (force value)]
+            (swap! config-values assoc-in ks calc-value)
+            calc-value)
+
+          (and (fn? value) (::delayed-default (meta value)))
+          (let [calc-value (value)]
+            (swap! config-values assoc-in ks calc-value)
+            calc-value)
+
+          :else value)))
 
 (defn set
   "Set the `value` for the `ks` path in the current configuration. Path can be
@@ -146,7 +159,9 @@
                     (special-action (get ks) value)
                     value)]
     (swap! config-values assoc-in ks (if dt
-                                       (delay (dt new-value))
+                                       (delay (dt (if (::delayed-default (meta new-value))
+                                                    (new-value)
+                                                    new-value)))
                                        new-value))))
 
 (defmacro with-options
@@ -163,7 +178,10 @@
   (let [walk (fn walk [prefix coll]
                (doseq [[kw-name spec] coll]
                  (when-some [default (:default spec)]
-                   (apply set (conj prefix kw-name default)))
+                   (apply set (conj prefix kw-name
+                                    (if (and (fn? default) @invoke-default-fns?)
+                                      (with-meta default {::delayed-default true})
+                                      default))))
                  (when-let [nested (:nested spec)]
                    (walk (conj prefix kw-name) nested))))]
     (walk [] @config-scheme)))
@@ -286,8 +304,10 @@
                  (cond (fn? required) "Conditionally required. "
                        required "Required. "
                        :else "")
-                 (when default
-                   (if secret "<SECRET>" default))))))
+                 (cond (nil? default) nil
+                       secret "<SECRET>"
+                       (and (fn? default) @invoke-default-fns?) "<computed>"
+                       :else default)))))
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
@@ -437,8 +457,12 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
   (swap! config-scheme dissoc :help) ;; Not needed anymore.
   (try-log
    (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw @config-scheme)]
-     (let [value (get-in @config-values kw-name)]
-       ;; Not using `cfg/get` above to avoid forcing delays too early.
+     (let [value (get-in @config-values kw-name)
+           ;; Not using `cfg/get` above to avoid forcing delays too early. But
+           ;; forcing functional defaults.
+           value (if (and (fn? value) (::delayed-default (meta value)))
+                   (get kw-name)
+                   value)]
        (when-let [r (:required spec)]
          (when (and (if (fn? r) (r) r)
                     (nil? value))
