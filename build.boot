@@ -4,8 +4,8 @@
        :description "Configuration library for Clojure that favors explicitness"
        :license     {"Apache License, Version 2.0"
                      "http://www.apache.org/licenses/LICENSE-2.0"}
-       :url         "https://github.com/grammarly/omniconf"
-       :scm         {:url "https://github.com/grammarly/omniconf"}})
+       :url         "https://github.com/neuromantik33/omniconf"
+       :scm         {:url "https://github.com/neuromantik33/omniconf"}})
 
 (def clj-version (or (System/getenv "BOOT_CLOJURE_VERSION") "1.10.1"))
 

@@ -366,6 +366,7 @@
                          (count kvs)))
     (doseq [[k v] kvs] (set k v))))
 
+(def ^:dynamic *readers* nil)
 (defn populate-from-file
   "Fill configuration from an edn file."
   ([edn-file quit-on-error]
@@ -374,7 +375,9 @@
   ([edn-file]
    (try-log
     (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
-                       (edn/read in))
+                       (if *readers*
+                        (edn/read {:readers *readers*} in)
+                        (edn/read in)))
           kvs (get-config-kvs-from-map config-map)]
       (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
                            edn-file (count kvs)))
