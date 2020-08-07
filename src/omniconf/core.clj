@@ -366,15 +366,21 @@
                          (count kvs)))
     (doseq [[k v] kvs] (set k v))))
 
+(def ^{:doc "The default data-readers to use when reading a configuration file" :dynamic true}
+  *data-readers* nil)
+
 (defn populate-from-file
-  "Fill configuration from an edn file."
+  "Fill configuration from an edn file.
+  Any data-reader functions may be optionally set by setting the *data-readers* binding."
   ([edn-file quit-on-error]
    (@logging-fn "WARNING: quit-on-error arity is deprecated.")
    (populate-from-file edn-file))
   ([edn-file]
    (try-log
     (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
-                       (edn/read in))
+                       (if *data-readers*
+                         (edn/read {:readers *data-readers*} in)
+                         (edn/read in)))
           kvs (get-config-kvs-from-map config-map)]
       (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
                            edn-file (count kvs)))

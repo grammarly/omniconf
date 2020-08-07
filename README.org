@@ -285,6 +285,16 @@
    workaround, you can call =populate-from-cmd= again, but only if your CLI args
    are idempotent (i.e. they don't contain =^:concat=, see below).
 
+   Optionally, =data-readers= may be provided when reading from a file which
+   contain library specific reader macros. For example:
+
+   #+BEGIN_SRC clojure
+   (cfg/populate-from-cmd args) ;; args is a command-line arguments list
+   (when-let [conf (cfg/get :conf)]
+     (binding [cfg/*data-readers* {'ig/ref ig/ref 'ig/refset ig/refset}] ; e.g. reader macros used by integrant
+       (cfg/populate-from-file conf)))
+   #+END_SRC
+
 ** Fetching configuration from AWS Systems Manager (SSM)
 
    Since version 0.3, Omniconf supports [[https://aws.amazon.com/systems-manager/][Amazon SSM]], particularly its [[https://aws.amazon.com/systems-manager/features/][Parameter
