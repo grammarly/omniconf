@@ -9,6 +9,8 @@
   defaults to store functions). You need to call
   `(cfg/enable-functions-as-defaults)` for this feature to work, but this will
   change in the next minor version.
+- [#16](https://github.com/grammarly/omniconf/issues/16) Add the ability to
+  specify data readers when loading configuration from a file.
 
 ### 0.4.1 (2019-12-06)
 
