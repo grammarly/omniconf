@@ -1,6 +1,6 @@
 # Changelog
 
-### 0.4.2-SNAPSHOT (unreleased)
+### 0.4.2 (2020-08-07)
 
 - `:default` field for an option can now be a nullary function that is invoked
   during the verification phase to generate the actual value based on other
