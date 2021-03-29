@@ -1,5 +1,12 @@
 # Changelog
 
+### 0.4.4-SNAPSHOT (unreleased)
+
+### 0.4.3 (2021-03-29)
+
+- Prevent exceptions raised in `populate-from-ssm` from breaking the periodic
+  scheduler.
+
 ### 0.4.2 (2020-08-07)
 
 - `:default` field for an option can now be a nullary function that is invoked

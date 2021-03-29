@@ -117,7 +117,9 @@
   (populate-from-ssm path)
   (let [poller (or @ssm-poller (reset! ssm-poller (make-scheduled-executor)))]
     (.scheduleAtFixedRate ^ScheduledExecutorService poller
-                          #(populate-from-ssm path true)
+                          #(try (populate-from-ssm path true)
+                                ;; Prevent exceptions from breaking the scheduler.
+                                (catch Exception _))
                           interval-in-seconds interval-in-seconds TimeUnit/SECONDS)))
 
 (defn stop-ssm-poller
