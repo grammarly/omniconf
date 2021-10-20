@@ -144,8 +144,8 @@
 
 (defn set
   "Set the `value` for the `ks` path in the current configuration. Path can be
-  provided as a single sequence, or as a variable number of keywords. If value
-  is a string, call the respective parser on it before setting."
+  provided as a single sequence, or as a variable number of keywords. Value must
+  already be of the proper type, strings won't be parsed"
   {:forms '([& ks value] [ks-vec value])}
   [& args]
   (let [[ks value] (if (sequential? (first args))
@@ -163,6 +163,16 @@
                                                     (new-value)
                                                     new-value)))
                                        new-value))))
+
+(defn unset
+  "Remove the `value` for the `ks` path in the current configuration. Path can be
+  provided as a single sequence, or as a variable number of keywords."
+  [& ks]
+  (let [ks (if (sequential? (first ks))
+             (first ks) ks)]
+    (swap! config-values #(if (= (count ks) 1)
+                            (dissoc % (first ks))
+                            (update-in % (butlast ks) dissoc (last ks))))))
 
 (defmacro with-options
   "Binds given symbols to respective configuration parameters and executes

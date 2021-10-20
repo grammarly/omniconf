@@ -1,6 +1,8 @@
 # Changelog
 
-### 0.4.4-SNAPSHOT (unreleased)
+### 0.5.0-SNAPSHOT (unreleased)
+
+- Add ability to unset values from SSM.
 
 ### 0.4.3 (2021-03-29)
 
