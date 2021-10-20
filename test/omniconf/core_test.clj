@@ -5,78 +5,79 @@
 
 (cfg/enable-functions-as-defaults)
 
-(cfg/define
-  {:help {:description "prints this help message"
-          :help-name "my-script"
-          :help-description "description of the whole script"}
-   :boolean-option {:description "can be either true or false"
-                    :type :boolean}
-   :string-option {:type :string
-                   :description "this option's value is taken as is"}
-   :integer-option {:type :number
-                    :description "parsed as integer"}
-   :edn-option {:type :edn
-                :description "read as EDN structure"
-                :default '(1 2)}
-   :file-option {:type :file
-                 :description "read as filename"}
-   :directory-option {:type :directory
-                      :description "read as directory name"}
-   :option-with-default {:parser cfg/parse-number
-                         :default 1024
-                         :description "has a default value"}
-   :required-option {:type :string
-                     :required true
-                     :description "must have a value before call to `verify`, otherwise fails"}
-   :conditional-option {:parser identity
-                        :required (fn [] (= (cfg/get :option-with-default) 2048))
-                        :description "must have a value if a condition applies"}
-   :option-from-set {:type :keyword
-                     :one-of #{:foo :bar :baz nil}
-                     :description "value must be a member of the provided list"}
-   :option-from-set-with-nil {:type :keyword
-                              :one-of #{:foo :bar nil}
-                              :description "value must be a member of the provided list, but not required"}
-   :existing-file-option {:parser cfg/parse-filename
-                          :verifier cfg/verify-file-exists
-                          :description "file should exist"}
-   :nonempty-dir-option {:parser cfg/parse-filename
-                         :verifier cfg/verify-directory-non-empty
-                         :description "directory must have files"}
-   :delayed-option {:type :number
-                    :delayed-transform (fn [v] (+ v 5))
-                    :description "has a custom transform that is called the first time the option is read"}
-   :renamed-option {:type :boolean
-                    :env-name "MY_OPTION"
-                    :opt-name "custom-option"
-                    :prop-name "property-custom-option"
-                    :description "has custom names for different sources"}
-   :secret-option {:type :string
-                   :secret true}
-   :conf-file {:type :file
-               :verifier cfg/verify-file-exists
-               :description "it is idiomatic to provide a configuration file just as another option"}
-   :nested-option {:description "has child options"
-                   :default {:first "alpha"}
-                   :nested {:first {:description "nested option one"
-                                    :type :string}
-                            :second {:description "nested option two"
-                                     :type :number
-                                     :default 70}
-                            :file {:description "nested file option"
-                                   :type :file}
-                            :more {:nested {:one {:type :string
-                                                  :default "one"}
-                                            :two {:type :string}}}}}
-   :nested-default-fn {:nested {:width {:type :number
-                                        :default 10}
-                                :height {:type :number
-                                         :default 20}
-                                :area {:type :number
-                                       :default #(* (cfg/get :nested-default-fn :width)
-                                                    (cfg/get :nested-default-fn :height))}}}
-   :delayed-nested {:nested {:delayed {:default "foo"
-                                       :delayed-transform #(str % "bar")}}}})
+(defn redefine []
+  (cfg/define
+    {:help {:description "prints this help message"
+            :help-name "my-script"
+            :help-description "description of the whole script"}
+     :boolean-option {:description "can be either true or false"
+                      :type :boolean}
+     :string-option {:type :string
+                     :description "this option's value is taken as is"}
+     :integer-option {:type :number
+                      :description "parsed as integer"}
+     :edn-option {:type :edn
+                  :description "read as EDN structure"
+                  :default '(1 2)}
+     :file-option {:type :file
+                   :description "read as filename"}
+     :directory-option {:type :directory
+                        :description "read as directory name"}
+     :option-with-default {:parser cfg/parse-number
+                           :default 1024
+                           :description "has a default value"}
+     :required-option {:type :string
+                       :required true
+                       :description "must have a value before call to `verify`, otherwise fails"}
+     :conditional-option {:parser identity
+                          :required (fn [] (= (cfg/get :option-with-default) 2048))
+                          :description "must have a value if a condition applies"}
+     :option-from-set {:type :keyword
+                       :one-of #{:foo :bar :baz nil}
+                       :description "value must be a member of the provided list"}
+     :option-from-set-with-nil {:type :keyword
+                                :one-of #{:foo :bar nil}
+                                :description "value must be a member of the provided list, but not required"}
+     :existing-file-option {:parser cfg/parse-filename
+                            :verifier cfg/verify-file-exists
+                            :description "file should exist"}
+     :nonempty-dir-option {:parser cfg/parse-filename
+                           :verifier cfg/verify-directory-non-empty
+                           :description "directory must have files"}
+     :delayed-option {:type :number
+                      :delayed-transform (fn [v] (+ v 5))
+                      :description "has a custom transform that is called the first time the option is read"}
+     :renamed-option {:type :boolean
+                      :env-name "MY_OPTION"
+                      :opt-name "custom-option"
+                      :prop-name "property-custom-option"
+                      :description "has custom names for different sources"}
+     :secret-option {:type :string
+                     :secret true}
+     :conf-file {:type :file
+                 :verifier cfg/verify-file-exists
+                 :description "it is idiomatic to provide a configuration file just as another option"}
+     :nested-option {:description "has child options"
+                     :default {:first "alpha"}
+                     :nested {:first {:description "nested option one"
+                                      :type :string}
+                              :second {:description "nested option two"
+                                       :type :number
+                                       :default 70}
+                              :file {:description "nested file option"
+                                     :type :file}
+                              :more {:nested {:one {:type :string
+                                                    :default "one"}
+                                              :two {:type :string}}}}}
+     :nested-default-fn {:nested {:width {:type :number
+                                          :default 10}
+                                  :height {:type :number
+                                           :default 20}
+                                  :area {:type :number
+                                         :default #(* (cfg/get :nested-default-fn :width)
+                                                      (cfg/get :nested-default-fn :height))}}}
+     :delayed-nested {:nested {:delayed {:default "foo"
+                                         :delayed-transform #(str % "bar")}}}}))
 
 (defn check-basic-options []
   (is (nil? (cfg/verify :silent true)))
@@ -98,8 +99,7 @@
   (is (= "two" (cfg/get :nested-option :more :two))))
 
 (deftest basic-options-cmd
-  (reset! @#'cfg/config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (redefine)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "CHANGELOG.md"
@@ -110,9 +110,7 @@
   (check-basic-options))
 
 (deftest basic-options-prop
-  (reset! @#'cfg/config-values (sorted-map))
-  (#'cfg/fill-default-values)
-
+  (redefine)
   (System/setProperty "required-option" "foo")
   (System/setProperty "string-option" "bar")
   (System/setProperty "integer-option" "42")
@@ -132,9 +130,7 @@
   (check-basic-options))
 
 (deftest basic-options-map
-  (reset! @#'cfg/config-values (sorted-map))
-  (#'cfg/fill-default-values)
-  (cfg/populate-from-map {:nested-option {:more {}}})
+  (redefine)
   ;; Hack because setting from map doesn't allow overriding whole nested maps.
   (cfg/set :nested-option :more {})
   (cfg/populate-from-map {:required-option "foo"
@@ -153,16 +149,14 @@
   (check-basic-options))
 
 (deftest basic-options-file
-  (reset! @#'cfg/config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (redefine)
   ;; Hack because setting from file doesn't allow overriding whole nested maps.
   (cfg/set :nested-option :more {})
   (cfg/populate-from-file "test/omniconf/test-config.edn")
   (check-basic-options))
 
 (deftest extended-functionality
-  (reset! @#'cfg/config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (redefine)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--file-option" "CHANGELOG.md"
@@ -238,15 +232,13 @@
   (testing "default functions"
     (is (= {:area 200, :height 20, :width 10} (cfg/get :nested-default-fn)))
 
-    (reset! @#'cfg/config-values (sorted-map))
-    (#'cfg/fill-default-values)
+    (redefine)
     (cfg/populate-from-file "test/omniconf/test-config.edn")
     (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200}})
     (cfg/verify)
     (is (= {:area 20000, :height 200, :width 100} (cfg/get :nested-default-fn)))
 
-    (reset! @#'cfg/config-values (sorted-map))
-    (#'cfg/fill-default-values)
+    (redefine)
     (cfg/populate-from-file "test/omniconf/test-config.edn")
     (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200 :area 42}})
     (cfg/verify)
