@@ -49,7 +49,7 @@
   ([^String path, only-modified?]
    (try
      (let [scheme
-           (->> (#'cfg/flatten-and-transpose-scheme :ssm @@#'cfg/config-scheme)
+           (->> (#'cfg/flatten-and-transpose-scheme :ssm (:config-scheme @cfg/a-global))
                 (remove #(:nested (second %)))
                 (group-by #(.startsWith ^String (first %) "./")))
 
@@ -93,8 +93,8 @@
            values-cnt (+ (count relative-kvs) (count absolute-kvs))]
 
        (when (or (pos? values-cnt) (not only-modified?))
-         (@@#'cfg/logging-fn (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
-                                     path values-cnt)))
+         ((:logging-fn @cfg/a-global) (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
+                                              path values-cnt)))
 
        (doseq [[k v] relative-kvs] (cfg/set k v))
        (doseq [[k v] absolute-kvs] (cfg/set k v))

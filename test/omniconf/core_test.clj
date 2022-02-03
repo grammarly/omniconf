@@ -98,7 +98,7 @@
   (is (= "two" (cfg/get :nested-option :more :two))))
 
 (deftest basic-options-cmd
-  (reset! @#'cfg/config-values (sorted-map))
+  (swap! cfg/a-global assoc :config-values (sorted-map))
   (#'cfg/fill-default-values)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
@@ -110,7 +110,7 @@
   (check-basic-options))
 
 (deftest basic-options-prop
-  (reset! @#'cfg/config-values (sorted-map))
+  (swap! cfg/a-global assoc :config-values (sorted-map))
   (#'cfg/fill-default-values)
 
   (System/setProperty "required-option" "foo")
@@ -132,7 +132,7 @@
   (check-basic-options))
 
 (deftest basic-options-map
-  (reset! @#'cfg/config-values (sorted-map))
+  (swap! cfg/a-global assoc :config-values (sorted-map))
   (#'cfg/fill-default-values)
   (cfg/populate-from-map {:nested-option {:more {}}})
   ;; Hack because setting from map doesn't allow overriding whole nested maps.
@@ -153,7 +153,7 @@
   (check-basic-options))
 
 (deftest basic-options-file
-  (reset! @#'cfg/config-values (sorted-map))
+  (swap! cfg/a-global assoc :config-values (sorted-map))
   (#'cfg/fill-default-values)
   ;; Hack because setting from file doesn't allow overriding whole nested maps.
   (cfg/set :nested-option :more {})
@@ -161,7 +161,7 @@
   (check-basic-options))
 
 (deftest extended-functionality
-  (reset! @#'cfg/config-values (sorted-map))
+  (swap! cfg/a-global assoc :config-values (sorted-map))
   (#'cfg/fill-default-values)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
@@ -238,14 +238,14 @@
   (testing "default functions"
     (is (= {:area 200, :height 20, :width 10} (cfg/get :nested-default-fn)))
 
-    (reset! @#'cfg/config-values (sorted-map))
+    (swap! cfg/a-global assoc :config-values (sorted-map))
     (#'cfg/fill-default-values)
     (cfg/populate-from-file "test/omniconf/test-config.edn")
     (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200}})
     (cfg/verify)
     (is (= {:area 20000, :height 200, :width 100} (cfg/get :nested-default-fn)))
 
-    (reset! @#'cfg/config-values (sorted-map))
+    (swap! cfg/a-global assoc :config-values (sorted-map))
     (#'cfg/fill-default-values)
     (cfg/populate-from-file "test/omniconf/test-config.edn")
     (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200 :area 42}})

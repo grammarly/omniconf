@@ -1,0 +1,8 @@
+{:deps
+ {com.amazonaws/aws-java-sdk-core {:mvn/version "1.11.802"}
+  com.amazonaws/aws-java-sdk-ssm {:mvn/version "1.11.802"}
+  com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.10.1"}
+  com.fasterxml.jackson.dataformat/jackson-dataformat-cbor {:mvn/version "2.10.1"}}
+
+ :paths
+ ["src" "test"]}
