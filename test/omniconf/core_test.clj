@@ -3,9 +3,11 @@
             [clojure.java.io :as io]
             [clojure.test :refer :all]))
 
-(cfg/enable-functions-as-defaults)
+(def config-comp (cfg/init-component))
 
-(cfg/define
+(cfg/enable-functions-as-defaults config-comp)
+
+(cfg/define config-comp
   {:help {:description "prints this help message"
           :help-name "my-script"
           :help-description "description of the whole script"}
@@ -29,7 +31,7 @@
                      :required true
                      :description "must have a value before call to `verify`, otherwise fails"}
    :conditional-option {:parser identity
-                        :required (fn [] (= (cfg/get :option-with-default) 2048))
+                        :required (fn [] (= (cfg/get config-comp :option-with-default) 2048))
                         :description "must have a value if a condition applies"}
    :option-from-set {:type :keyword
                      :one-of #{:foo :bar :baz nil}
@@ -73,34 +75,35 @@
                                 :height {:type :number
                                          :default 20}
                                 :area {:type :number
-                                       :default #(* (cfg/get :nested-default-fn :width)
-                                                    (cfg/get :nested-default-fn :height))}}}
+                                       :default #(* (cfg/get config-comp :nested-default-fn :width)
+                                                    (cfg/get config-comp :nested-default-fn :height))}}}
    :delayed-nested {:nested {:delayed {:default "foo"
                                        :delayed-transform #(str % "bar")}}}})
 
 (defn check-basic-options []
-  (is (nil? (cfg/verify :silent true)))
-  (is (= true (cfg/get :boolean-option)))
-  (is (= "bar" (cfg/get :string-option)))
-  (is (= 42 (cfg/get :integer-option)))
-  (is (= '(1 2 3) (cfg/get :edn-option)))
-  (is (= (java.io.File. "build.boot") (cfg/get :file-option)))
-  (is (= (java.io.File. "test/") (cfg/get :directory-option)))
-  (is (= 2048 (cfg/get :option-with-default)))
-  (is (= :baz (cfg/get :option-from-set)))
-  (is (= nil (cfg/get :option-from-set-with-nil)))
-  (is (= 15 (cfg/get :delayed-option)))
-  (is (= true (cfg/get :renamed-option)))
-  (is (= {:first "alpha", :more {:two "two"}, :second 70} (cfg/get :nested-option)))
-  (is (= "alpha" (cfg/get :nested-option :first)))
-  (is (= 70 (cfg/get :nested-option :second)))
-  (is (= {:two "two"} (cfg/get :nested-option :more)))
-  (is (= "two" (cfg/get :nested-option :more :two))))
+  (is (nil? (cfg/verify config-comp :silent true)))
+  (is (= true (cfg/get config-comp :boolean-option)))
+  (is (= "bar" (cfg/get config-comp :string-option)))
+  (is (= 42 (cfg/get config-comp :integer-option)))
+  (is (= '(1 2 3) (cfg/get config-comp :edn-option)))
+  (is (= (java.io.File. "build.boot") (cfg/get config-comp :file-option)))
+  (is (= (java.io.File. "test/") (cfg/get config-comp :directory-option)))
+  (is (= 2048 (cfg/get config-comp :option-with-default)))
+  (is (= :baz (cfg/get config-comp :option-from-set)))
+  (is (= nil (cfg/get config-comp :option-from-set-with-nil)))
+  (is (= 15 (cfg/get config-comp :delayed-option)))
+  (is (= true (cfg/get config-comp :renamed-option)))
+  (is (= {:first "alpha", :more {:two "two"}, :second 70} (cfg/get config-comp :nested-option)))
+  (is (= "alpha" (cfg/get config-comp :nested-option :first)))
+  (is (= 70 (cfg/get config-comp :nested-option :second)))
+  (is (= {:two "two"} (cfg/get config-comp :nested-option :more)))
+  (is (= "two" (cfg/get config-comp :nested-option :more :two))))
 
 (deftest basic-options-cmd
-  (swap! cfg/a-global assoc :config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (swap! config-comp assoc :config-values (sorted-map))
+  (#'cfg/fill-default-values config-comp)
   (cfg/populate-from-cmd
+   config-comp
    ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "build.boot"
     "--directory-option" "test" "--option-with-default" "2048"
@@ -110,8 +113,8 @@
   (check-basic-options))
 
 (deftest basic-options-prop
-  (swap! cfg/a-global assoc :config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (swap! config-comp assoc :config-values (sorted-map))
+  (#'cfg/fill-default-values config-comp)
 
   (System/setProperty "required-option" "foo")
   (System/setProperty "string-option" "bar")
@@ -128,16 +131,17 @@
   (System/setProperty "nested-option.more.two" "two")
   (System/setProperty "boolean-option" "true")
 
-  (cfg/populate-from-properties)
+  (cfg/populate-from-properties config-comp)
   (check-basic-options))
 
 (deftest basic-options-map
-  (swap! cfg/a-global assoc :config-values (sorted-map))
-  (#'cfg/fill-default-values)
-  (cfg/populate-from-map {:nested-option {:more {}}})
+  (swap! config-comp assoc :config-values (sorted-map))
+  (#'cfg/fill-default-values config-comp)
+  (cfg/populate-from-map config-comp {:nested-option {:more {}}})
   ;; Hack because setting from map doesn't allow overriding whole nested maps.
-  (cfg/set :nested-option :more {})
-  (cfg/populate-from-map {:required-option "foo"
+  (cfg/set config-comp :nested-option :more {})
+  (cfg/populate-from-map config-comp
+                         {:required-option "foo"
                           :string-option "bar"
                           :integer-option 42
                           :edn-option "^:concat (3)"
@@ -153,17 +157,17 @@
   (check-basic-options))
 
 (deftest basic-options-file
-  (swap! cfg/a-global assoc :config-values (sorted-map))
-  (#'cfg/fill-default-values)
+  (swap! config-comp assoc :config-values (sorted-map))
+  (#'cfg/fill-default-values config-comp)
   ;; Hack because setting from file doesn't allow overriding whole nested maps.
-  (cfg/set :nested-option :more {})
-  (cfg/populate-from-file "test/omniconf/test-config.edn")
+  (cfg/set config-comp :nested-option :more {})
+  (cfg/populate-from-file config-comp "test/omniconf/test-config.edn")
   (check-basic-options))
 
 (deftest extended-functionality
-  (swap! cfg/a-global assoc :config-values (sorted-map))
-  (#'cfg/fill-default-values)
-  (cfg/populate-from-cmd
+  (swap! config-comp assoc :config-values (sorted-map))
+  (#'cfg/fill-default-values config-comp)
+  (cfg/populate-from-cmd config-comp
    ["--required-option" "foo" "--string-option" "bar"
     "--integer-option" "42" "--file-option" "build.boot"
     "--directory-option" "test" "--option-with-default" "2048"
@@ -172,83 +176,83 @@
     "--nested-option.more.two" "two" "--boolean-option"])
 
   (testing "fine-so-far"
-    (is (nil? (cfg/verify :silent true))))
+    (is (nil? (cfg/verify config-comp :silent true))))
 
   (testing "required"
-    (cfg/set :required-option nil)
+    (cfg/set config-comp :required-option nil)
     (is (thrown? Exception (cfg/verify)))
-    (cfg/set :required-option "foo"))
+    (cfg/set config-comp :required-option "foo"))
 
   (testing "one-of"
-    (cfg/set :option-from-set :bar)
-    (is (nil? (cfg/verify :silent true)))
-    (cfg/set :option-from-set :notbar)
-    (is (thrown? Exception (cfg/verify)))
-    (cfg/set :option-from-set :bar))
+    (cfg/set config-comp :option-from-set :bar)
+    (is (nil? (cfg/verify config-comp :silent true)))
+    (cfg/set config-comp :option-from-set :notbar)
+    (is (thrown? Exception (cfg/verify config-comp)))
+    (cfg/set config-comp :option-from-set :bar))
 
   (testing "conditional-required"
-    (cfg/set :option-with-default 2048)
-    (cfg/set :conditional-option "foo")
-    (is (nil? (cfg/verify :silent true)))
-    (cfg/set :conditional-option nil)
-    (is (thrown? Exception (cfg/verify)))
-    (cfg/set :option-with-default 1024)
-    (is (nil? (cfg/verify :silent true))))
+    (cfg/set config-comp :option-with-default 2048)
+    (cfg/set config-comp :conditional-option "foo")
+    (is (nil? (cfg/verify config-comp :silent true)))
+    (cfg/set config-comp :conditional-option nil)
+    (is (thrown? Exception (cfg/verify config-comp)))
+    (cfg/set config-comp :option-with-default 1024)
+    (is (nil? (cfg/verify config-comp :silent true))))
 
   (testing "delayed transform works for nested values"
-    (is (= "foobar" (cfg/get :delayed-nested :delayed))))
+    (is (= "foobar" (cfg/get config-comp :delayed-nested :delayed))))
 
   (testing "secret"
-    (cfg/set :secret-option "very-sensitive-data")
-    (is (= -1 (.indexOf (with-out-str (cfg/verify)) "very-sensitive-data"))))
+    (cfg/set config-comp :secret-option "very-sensitive-data")
+    (is (= -1 (.indexOf (with-out-str (cfg/verify config-comp)) "very-sensitive-data"))))
 
   (testing "verify-file-exists"
-    (cfg/set :existing-file-option (io/file "nada.clj"))
-    (is (thrown? Exception (cfg/verify)))
-    (cfg/set :existing-file-option (io/file "build.boot")))
+    (cfg/set config-comp :existing-file-option (io/file "nada.clj"))
+    (is (thrown? Exception (cfg/verify config-comp)))
+    (cfg/set config-comp :existing-file-option (io/file "build.boot")))
 
   (testing "verify-nonempty-dir"
     (.mkdirs (io/file "target" "_empty_"))
-    (cfg/set :nonempty-dir-option (io/file "target" "_empty_"))
-    (is (thrown? Exception (cfg/verify)))
-    (cfg/set :nonempty-dir-option (io/file "test")))
+    (cfg/set config-comp :nonempty-dir-option (io/file "target" "_empty_"))
+    (is (thrown? Exception (cfg/verify config-comp)))
+    (cfg/set config-comp :nonempty-dir-option (io/file "test")))
 
   (testing "populate-from-opts"
-    (is (thrown? Exception (cfg/populate-from-cmd ["--string-option" "bar" "baz"]))))
+    (is (thrown? Exception (cfg/populate-from-cmd config-comp ["--string-option" "bar" "baz"]))))
 
   (testing "print-cli-help"
-    (is (not= "" (with-out-str (#'cfg/print-cli-help)))))
+    (is (not= "" (with-out-str (#'cfg/print-cli-help config-comp)))))
 
   (testing "with-options"
-    (cfg/with-options [option-with-default]
+    (cfg/with-options config-comp [option-with-default]
       (is (= 1024 option-with-default))))
 
   (testing "populate-from-env"
-    (cfg/populate-from-env)
-    (cfg/verify :silent true))
+    (cfg/populate-from-env config-comp)
+    (cfg/verify config-comp :silent true))
 
   (testing "populate-from-file"
-    (cfg/populate-from-file "test/omniconf/test-config.edn")
-    (cfg/verify :silent true))
+    (cfg/populate-from-file config-comp "test/omniconf/test-config.edn")
+    (cfg/verify config-comp :silent true))
 
   (testing "parsing sanity-check"
-    (is (thrown? Exception (cfg/populate-from-cmd ["--nested-option" "foo"])))
-    (is (thrown? Exception (cfg/populate-from-cmd ["--integer-option" "garbage"]))))
+    (is (thrown? Exception (cfg/populate-from-cmd config-comp ["--nested-option" "foo"])))
+    (is (thrown? Exception (cfg/populate-from-cmd config-comp ["--integer-option" "garbage"]))))
 
   (testing "default functions"
-    (is (= {:area 200, :height 20, :width 10} (cfg/get :nested-default-fn)))
+    (is (= {:area 200, :height 20, :width 10} (cfg/get config-comp :nested-default-fn)))
 
-    (swap! cfg/a-global assoc :config-values (sorted-map))
-    (#'cfg/fill-default-values)
-    (cfg/populate-from-file "test/omniconf/test-config.edn")
-    (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200}})
-    (cfg/verify)
-    (is (= {:area 20000, :height 200, :width 100} (cfg/get :nested-default-fn)))
+    (swap! config-comp assoc :config-values (sorted-map))
+    (#'cfg/fill-default-values config-comp)
+    (cfg/populate-from-file config-comp "test/omniconf/test-config.edn")
+    (cfg/populate-from-map config-comp {:nested-default-fn {:width 100 :height 200}})
+    (cfg/verify config-comp)
+    (is (= {:area 20000, :height 200, :width 100} (cfg/get config-comp :nested-default-fn)))
 
-    (swap! cfg/a-global assoc :config-values (sorted-map))
-    (#'cfg/fill-default-values)
-    (cfg/populate-from-file "test/omniconf/test-config.edn")
-    (cfg/populate-from-map {:nested-default-fn {:width 100 :height 200 :area 42}})
-    (cfg/verify)
-    (is (= {:area 42, :height 200, :width 100} (cfg/get :nested-default-fn))))
+    (swap! config-comp assoc :config-values (sorted-map))
+    (#'cfg/fill-default-values config-comp)
+    (cfg/populate-from-file config-comp "test/omniconf/test-config.edn")
+    (cfg/populate-from-map config-comp {:nested-default-fn {:width 100 :height 200 :area 42}})
+    (cfg/verify config-comp)
+    (is (= {:area 42, :height 200, :width 100} (cfg/get config-comp :nested-default-fn))))
   )

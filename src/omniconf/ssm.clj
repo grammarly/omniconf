@@ -36,8 +36,8 @@
 (defn set-value-from-ssm
   "Fetch a single value from Amazon SSM by the given `ssm-key-name` and set it in
   Omniconf by `omniconf-key`."
-  [omniconf-key ssm-key-name]
-  (cfg/set omniconf-key (get-parameter ssm-key-name)))
+  [config-comp omniconf-key ssm-key-name]
+  (cfg/set config-comp omniconf-key (get-parameter ssm-key-name)))
 
 (def ^:private ssm-params-cache (atom {}))
 
@@ -45,11 +45,11 @@
   "Fill configuration from AWS Systems Manager. Recursively look up all parameters
   under the given `path`. If `only-modified?` is true, it will update only those
   parameters that were modified since the last time we checked SSM."
-  ([path] (populate-from-ssm path false))
-  ([^String path, only-modified?]
+  ([config-comp path] (populate-from-ssm config-comp path false))
+  ([config-comp ^String path, only-modified?]
    (try
      (let [scheme
-           (->> (#'cfg/flatten-and-transpose-scheme :ssm (:config-scheme @cfg/a-global))
+           (->> (#'cfg/flatten-and-transpose-scheme :ssm (:config-scheme @config-comp))
                 (remove #(:nested (second %)))
                 (group-by #(.startsWith ^String (first %) "./")))
 
@@ -93,14 +93,14 @@
            values-cnt (+ (count relative-kvs) (count absolute-kvs))]
 
        (when (or (pos? values-cnt) (not only-modified?))
-         ((:logging-fn @cfg/a-global) (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
+         ((:logging-fn @config-comp) (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
                                               path values-cnt)))
 
-       (doseq [[k v] relative-kvs] (cfg/set k v))
-       (doseq [[k v] absolute-kvs] (cfg/set k v))
+       (doseq [[k v] relative-kvs] (cfg/set config-comp k v))
+       (doseq [[k v] absolute-kvs] (cfg/set config-comp k v))
 
        (reset! ssm-params-cache new-cache))
-     (catch clojure.lang.ExceptionInfo e (#'cfg/log-and-rethrow e)))))
+     (catch clojure.lang.ExceptionInfo e (#'cfg/log-and-rethrow config-comp e)))))
 
 (defonce ^:private ssm-poller (atom nil))
 
@@ -113,8 +113,8 @@
 (defn populate-from-ssm-continually
   "Like `populate-from-ssm`, but runs regularly at the specified interval. Use
   this to dynamically reconfigure your program at runtime."
-  [path interval-in-seconds]
-  (populate-from-ssm path)
+  [config-comp path interval-in-seconds]
+  (populate-from-ssm config-comp path)
   (let [poller (or @ssm-poller (reset! ssm-poller (make-scheduled-executor)))]
     (.scheduleAtFixedRate ^ScheduledExecutorService poller
                           #(try (populate-from-ssm path true)

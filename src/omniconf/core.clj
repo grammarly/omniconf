@@ -8,7 +8,7 @@
 
 (ns omniconf.core
   "Omniconf is an exhaustive configuration tool."
-  (:refer-clojure :exclude [get set *data-readers*])
+  (:refer-clojure :exclude [get set parse-boolean *data-readers*])
   (:require [clojure.core :as clj]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -18,7 +18,8 @@
 
 ;; Plumbing
 
-(def a-global
+(defn init-component
+  []
   (atom {
          ;; Stores configuration description of the program.
          :config-scheme nil
@@ -30,13 +31,13 @@
 
 (defn set-logging-fn
   "Change `println` to a custom logging function that Omniconf will use."
-  [fn]
-  (swap! a-global assoc :logging-fn fn))
+  [config-comp fn]
+  (swap! config-comp assoc :logging-fn fn))
 
 (defn enable-functions-as-defaults
   "Allow invoking functions passed to :default field for the options."
-  []
-  (swap! a-global assoc :invoke-default-fns? true))
+  [config-comp]
+  (swap! config-comp assoc :invoke-default-fns? true))
 
 (defn- running-in-repl?
   "Return true when this function is executed from within the REPL."
@@ -49,18 +50,18 @@
 (defn- log-and-rethrow
   "Log the exception using `logging-fn` and rethrow the exception. If called not
   from the REPL, clear the stacktrace of the rethrown exception."
-  [^Exception e]
+  [config-comp ^Exception e]
   (binding [*out* *err*]
-    ((:logging-fn @a-global) "ERROR:" (.getMessage e)))
+    ((:logging-fn @config-comp) "ERROR:" (.getMessage e)))
   (when-not (running-in-repl?)
     (.setStackTrace ^Exception e (into-array StackTraceElement [])))
   (throw e))
 
 (defmacro ^:private try-log
   "Like regular `try`, but calls `log-and-rethrow` on ExceptionInfo exceptions."
-  [& body]
+  [config-comp & body]
   `(try ~@body
-        (catch clojure.lang.ExceptionInfo e# (log-and-rethrow e#))))
+        (catch clojure.lang.ExceptionInfo e# (log-and-rethrow ~config-comp e#))))
 
 (defn fail
   "Throws an exception with a message specified by `fmt` and `args`."
@@ -116,24 +117,24 @@
                      identity))]
     (try (parser value-str)
          (catch clojure.lang.ExceptionInfo e (throw e))
-         (catch Exception e (fail "%s : Couldn't parse value '%s'."
+         (catch Exception _ (fail "%s : Couldn't parse value '%s'."
                                   (:name spec) value-str)))))
 
 (defn get
   "Get the value from the current configuration given the path in nested
   structure specified by `ks`. Path can be provided as a single sequence, or as
   a variable number of keywords."
-  [& ks]
+  [config-comp & ks]
   (let [ks (if (sequential? (first ks)) (first ks) ks)
-        value (clj/get-in (:config-values @a-global) ks)]
+        value (clj/get-in (:config-values @config-comp) ks)]
     (cond (delay? value)
           (let [calc-value (force value)]
-            (swap! a-global update :config-values assoc-in ks calc-value)
+            (swap! config-comp update :config-values assoc-in ks calc-value)
             calc-value)
 
           (and (fn? value) (::delayed-default (meta value)))
           (let [calc-value (value)]
-            (swap! a-global update :config-values assoc-in ks calc-value)
+            (swap! config-comp update :config-values assoc-in ks calc-value)
             calc-value)
 
           :else value)))
@@ -142,45 +143,47 @@
   "Set the `value` for the `ks` path in the current configuration. Path can be
   provided as a single sequence, or as a variable number of keywords. If value
   is a string, call the respective parser on it before setting."
-  {:forms '([& ks value] [ks-vec value])}
-  [& args]
+  {:forms '([config-comp & ks value] [config-comp ks-vec value])}
+  [config-comp & args]
   (let [[ks value] (if (sequential? (first args))
                      ((juxt first second) args)
                      ((juxt butlast last) args))
         special-action (cond
                          (:merge (meta value)) merge
                          (:concat (meta value)) #(seq (concat %1 %2)))
-        dt (:delayed-transform (get-in (:config-scheme @a-global) (interpose :nested ks)))
+        dt (:delayed-transform (get-in (:config-scheme @config-comp)
+                                       (interpose :nested ks)))
         new-value (if special-action
-                    (special-action (get ks) value)
+                    (special-action (get config-comp ks) value)
                     value)]
-    (swap! a-global update :config-values assoc-in ks (if dt
-                                                        (delay (dt (if (::delayed-default (meta new-value))
-                                                                     (new-value)
-                                                                     new-value)))
-                                                        new-value))))
+    (swap! config-comp update :config-values assoc-in ks (if dt
+                                                           (delay (dt (if (::delayed-default (meta new-value))
+                                                                        (new-value)
+                                                                        new-value)))
+                                                           new-value))))
 
 (defmacro with-options
   "Binds given symbols to respective configuration parameters and executes
   `body` in that context. Works only for top-level parameters."
-  [bindings & body]
-  `(let [~@(mapcat (fn [sym] [sym `(get ~(keyword sym))]) bindings)]
+  [config-comp bindings & body]
+  `(let [~@(mapcat (fn [sym] [sym `(get ~config-comp ~(keyword sym))]) bindings)]
      ~@body))
 
 (defn- fill-default-values
   "When called after a configuration schema is defined, sets the values for
   options that have defaults."
-  []
+  [config-comp]
   (let [walk (fn walk [prefix coll]
                (doseq [[kw-name spec] coll]
                  (when-some [default (:default spec)]
-                   (apply set (conj prefix kw-name
-                                    (if (and (fn? default) (:invoke-default-fns? @a-global) )
-                                      (with-meta default {::delayed-default true})
-                                      default))))
+                   (apply set config-comp
+                          (conj prefix kw-name
+                                (if (and (fn? default) (:invoke-default-fns? @config-comp))
+                                  (with-meta default {::delayed-default true})
+                                  default))))
                  (when-let [nested (:nested spec)]
                    (walk (conj prefix kw-name) nested))))]
-    (walk [] (:config-scheme @a-global))))
+    (walk [] (:config-scheme @config-comp))))
 
 (defn define
   "Declare the configuration that the program supports. `scheme` is a map of
@@ -207,8 +210,8 @@
   :verifier - fn on key and val, should throw an exception if option is invalid.
   :secret - if true, value will not be printed during verification.
   :nested - allows to create hierarchies of options."
-  [scheme]
-  (swap! a-global assoc :config-values (sorted-map))
+  [config-comp scheme]
+  (swap! config-comp assoc :config-values (sorted-map))
 
   ;; Recursively update scheme.
   (letfn [(walk [prefix coll]
@@ -238,9 +241,9 @@
                                      (update-in [:nested]
                                                 #(when % (walk (conj prefix kw-name) %))))]))
                  (into (sorted-map))))]
-    (swap! a-global assoc :config-scheme (walk [] scheme)))
+    (swap! config-comp assoc :config-scheme (walk [] scheme)))
 
-  (fill-default-values))
+  (fill-default-values config-comp))
 
 (defn- flatten-and-transpose-scheme
   "Returns a flat hashmap from scheme where nested specs are in the top level,
@@ -269,27 +272,24 @@
   "Fill configuration from environment variables. This function must be called
   only after `define`. If `quit-on-error` is true, immediately quit when program
   occurs."
-  ([quit-on-error]
-   ((:logging-fn @a-global) "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-env))
-  ([]
-   (try-log
-    (let [env (System/getenv)
-          kvs (for [[env-name spec] (flatten-and-transpose-scheme :env (:config-scheme @a-global))
-                    :let [value (clj/get env env-name)]
-                    :when value]
-                [(:name spec) (parse spec value)])]
-      ((:logging-fn @a-global) (format "Populating Omniconf from env: %s value(s)" (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([])})
+  [config-comp]
+  (try-log config-comp
+   (let [env (System/getenv)
+         kvs (for [[env-name spec] (flatten-and-transpose-scheme :env (:config-scheme @config-comp))
+                   :let [value (clj/get env env-name)]
+                   :when value]
+               [(:name spec) (parse spec value)])]
+     ((:logging-fn @config-comp) (format "Populating Omniconf from env: %s value(s)" (count kvs)))
+     (doseq [[k v] kvs] (set config-comp k v))))
+  {:forms '([config-comp])})
 
 (defn print-cli-help
   "Prints a help message describing all supported command-line arguments."
-  []
+  [config-comp]
   (cl-format true "~:[Standalone script~;~:*~A~]~:[.~; - ~:*~A~]~%~%"
-             (get-in (:config-scheme @a-global) [:help :help-name])
-             (get-in (:config-scheme @a-global) [:help :help-description]))
-  (let [options (->> (flatten-and-transpose-scheme :cmd (:config-scheme @a-global))
+             (get-in (:config-scheme @config-comp) [:help :help-name])
+             (get-in (:config-scheme @config-comp) [:help :help-description]))
+  (let [options (->> (flatten-and-transpose-scheme :cmd (:config-scheme @config-comp))
                      vals
                      (remove :nested)
                      (sort-by :opt-name))
@@ -302,45 +302,42 @@
                        :else "")
                  (cond (nil? default) nil
                        secret "<SECRET>"
-                       (and (fn? default) (:invoke-default-fns? @a-global)) "<computed>"
+                       (and (fn? default) (:invoke-default-fns? @config-comp)) "<computed>"
                        :else default)))))
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
-  ([cmd-args quit-on-error]
-   ((:logging-fn @a-global) "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-cmd cmd-args))
-  ([cmd-args]
-   (try-log
-    (let [grouped-opts
-          (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
-            (cond (= c ::end) (if curr-opt
-                                (conj result [curr-opt true])
-                                result)
-                  (str/starts-with? c "--") (recur r c (if curr-opt
-                                                         (conj result [curr-opt true])
-                                                         result))
-                  curr-opt (recur r nil (conj result [curr-opt c]))
-                  :else (fail "Malformed command-line arguments, key expected, '%s' found."
-                              c)))]
-      (when (clj/get (into {} grouped-opts) "--help")
-        (print-cli-help)
-        (System/exit 0))
+  [config-comp cmd-args]
+  (try-log config-comp
+   (let [grouped-opts
+         (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
+           (cond (= c ::end) (if curr-opt
+                               (conj result [curr-opt true])
+                               result)
+                 (str/starts-with? c "--") (recur r c (if curr-opt
+                                                        (conj result [curr-opt true])
+                                                        result))
+                 curr-opt (recur r nil (conj result [curr-opt c]))
+                 :else (fail "Malformed command-line arguments, key expected, '%s' found."
+                             c)))]
+     (when (clj/get (into {} grouped-opts) "--help")
+       (print-cli-help config-comp)
+       (System/exit 0))
 
-      ((:logging-fn @a-global) (format "Populating Omniconf from CLI args: %s value(s)"
-                           (count grouped-opts)))
+     ((:logging-fn @config-comp) (format "Populating Omniconf from CLI args: %s value(s)"
+                                         (count grouped-opts)))
 
-      (let [transposed-scheme (flatten-and-transpose-scheme :cmd (:config-scheme @a-global))]
-        (doseq [[k v] grouped-opts]
-          (if-let [spec (clj/get transposed-scheme k)]
-            (set (:name spec) (parse spec v))
-            ((:logging-fn @a-global) "WARNING: Unrecognized option:" k)))))))
-  {:forms '([cmd-args])})
+     (let [transposed-scheme (flatten-and-transpose-scheme :cmd (:config-scheme @config-comp))]
+       (doseq [[k v] grouped-opts]
+         (if-let [spec (clj/get transposed-scheme k)]
+           (set config-comp (:name spec) (parse spec v))
+           ((:logging-fn @config-comp) "WARNING: Unrecognized option:" k))))))
+  {:forms '([config-comp cmd-args])})
 
 (defn- get-config-kvs-from-map
   "Walks the supplied map and reformats it in the form of config keys to values."
-  [config-map]
-  (try-log
+  [config-comp config-map]
+  (try-log config-comp
    (let [kvs (volatile! {})]
      (letfn [(walk [prefix spec-root tree]
                (doseq [[key value] tree]
@@ -351,16 +348,16 @@
                      (vswap! kvs assoc path (if (string? value)
                                               (parse spec value)
                                               value))))))]
-       (walk [] (:config-scheme @a-global) config-map))
+       (walk [] (:config-scheme @config-comp) config-map))
      @kvs)))
 
 (defn populate-from-map
   "Fill configuration from a map passed directly as value."
-  [config-map]
-  (let [kvs (get-config-kvs-from-map config-map)]
-    ((:logging-fn @a-global) (format "Populating Omniconf from map: %s value(s)"
-                         (count kvs)))
-    (doseq [[k v] kvs] (set k v))))
+  [config-comp config-map]
+  (let [kvs (get-config-kvs-from-map config-comp config-map)]
+    ((:logging-fn @config-comp) (format "Populating Omniconf from map: %s value(s)"
+                                        (count kvs)))
+    (doseq [[k v] kvs] (set config-comp k v))))
 
 (def ^{:doc "The default data-readers to use when reading a configuration file" :dynamic true}
   *data-readers* nil)
@@ -368,69 +365,63 @@
 (defn populate-from-file
   "Fill configuration from an edn file.
   Any data-reader functions may be optionally set by setting the *data-readers* binding."
-  ([edn-file quit-on-error]
-   ((:logging-fn @a-global) "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-file edn-file))
-  ([edn-file]
-   (try-log
-    (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
-                       (if *data-readers*
-                         (edn/read {:readers *data-readers*} in)
-                         (edn/read in)))
-          kvs (get-config-kvs-from-map config-map)]
-      ((:logging-fn @a-global) (format "Populating Omniconf from file %s: %s value(s)"
-                           edn-file (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([edn-file])})
+  [config-comp edn-file]
+  (try-log config-comp
+   (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
+                      (if *data-readers*
+                        (edn/read {:readers *data-readers*} in)
+                        (edn/read in)))
+         kvs (get-config-kvs-from-map config-comp config-map)]
+     ((:logging-fn @config-comp) (format "Populating Omniconf from file %s: %s value(s)"
+                                         edn-file (count kvs)))
+     (doseq [[k v] kvs] (set config-comp k v))))
+  {:forms '([config-comp edn-file])})
 
 (defn populate-from-properties
   "Fill configuration from Java properties."
-  ([quit-on-error]
-   ((:logging-fn @a-global) "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-properties))
-  ([]
-   (try-log
-    (let [kvs (for [[prop-name spec] (flatten-and-transpose-scheme :prop (:config-scheme @a-global))
-                    :let [value (System/getProperty prop-name)]
-                    :when value]
-                [(:name spec) (parse spec value)])]
-      ((:logging-fn @a-global) (format "Populating Omniconf from Java properties: %s value(s)"
-                           (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([])})
+  [config-comp]
+  (try-log config-comp
+   (let [kvs (for [[prop-name spec] (flatten-and-transpose-scheme :prop (:config-scheme @config-comp))
+                   :let [value (System/getProperty prop-name)]
+                   :when value]
+               [(:name spec) (parse spec value)])]
+     ((:logging-fn @config-comp) (format "Populating Omniconf from Java properties: %s value(s)"
+                                         (count kvs)))
+     (doseq [[k v] kvs] (set config-comp k v))))
+  {:forms '([config-comp])})
 
 (defn populate-from-ssm
   "Fill configuration from AWS Systems Manager. Recursively look up all parameters
   under the given `path`.
   com.grammarly/omniconf.ssm dependency must be on classpath."
-  [path]
-  (try-log
+  [config-comp path]
+  (try-log config-comp
    (try (require 'omniconf.ssm)
-        (catch java.io.FileNotFoundException e
+        (catch java.io.FileNotFoundException _
           (fail "omniconf.ssm namespace not found.
 Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
-   ((resolve 'omniconf.ssm/populate-from-ssm) path)))
+   ((resolve 'omniconf.ssm/populate-from-ssm) config-comp path)))
 
 (defn populate-from-ssm-continually
   "Like `populate-from-ssm`, but runs regularly at the specified interval. Use
   this to dynamically reconfigure your program at runtime.
   com.grammarly/omniconf.ssm dependency must be on classpath."
-  [path interval-in-seconds]
-  (try-log
+  [config-comp path interval-in-seconds]
+  (try-log config-comp
    (try (require 'omniconf.ssm)
-        (catch java.io.FileNotFoundException e
+        (catch java.io.FileNotFoundException _
           (fail "omniconf.ssm namespace not found.
 Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
-   ((resolve 'omniconf.ssm/populate-from-ssm-continually) path interval-in-seconds)))
+   ((resolve 'omniconf.ssm/populate-from-ssm-continually) config-comp path interval-in-seconds)))
 
 (defn stop-ssm-poller
   "Stop the process that polls SSM for configuration, created by
   `populate-from-ssm-continually`.
   com.grammarly/omniconf.ssm dependency must be on classpath."
-  []
-  (try-log
+  [config-comp]
+  (try-log config-comp
    (try (require 'omniconf.ssm)
-        (catch java.io.FileNotFoundException e
+        (catch java.io.FileNotFoundException _
           (fail "omniconf.ssm namespace not found.
 Make sure that com.grammarly/omniconf.ssm dependency is present on classpath.")))
    ((resolve 'omniconf.ssm/stop-ssm-poller))))
@@ -438,8 +429,8 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
 (defn report-configuration
   "Prints the current configuration state to `*out*`. Hide options marked as
   `:secret`."
-  []
-  ((:logging-fn @a-global)
+  [config-comp]
+  ((:logging-fn @config-comp)
    (with-out-str
      (println "Omniconf configuration:")
      (pprint
@@ -447,23 +438,23 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
                 (if (and (:secret val-spec) (get-in values-map val-path))
                   (assoc-in values-map val-path '<SECRET>)
                   values-map))
-              (:config-values @a-global)
-              (flatten-and-transpose-scheme :kw (:config-scheme @a-global)))))))
+              (:config-values @config-comp)
+              (flatten-and-transpose-scheme :kw (:config-scheme @config-comp)))))))
 
 (defn verify
   "Checks if all the required options are provided, if all values are in range,
   and prints the configuration. If `:quit-on-error` is set, script will exit if
   configuration is incorrect. If `:silent` is true, don't print the
   configuration state."
-  [& {:keys [silent]}]
-  (swap! a-global update :config-scheme dissoc :help) ;; Not needed anymore.
-  (try-log
-   (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw (:config-scheme @a-global))]
-     (let [value (get-in (:config-values @a-global) kw-name)
+  [config-comp & {:keys [silent]}]
+  (swap! config-comp update :config-scheme dissoc :help) ;; Not needed anymore.
+  (try-log config-comp
+   (doseq [[kw-name spec] (flatten-and-transpose-scheme :kw (:config-scheme @config-comp))]
+     (let [value (get-in (:config-values @config-comp) kw-name)
            ;; Not using `cfg/get` above to avoid forcing delays too early. But
            ;; forcing functional defaults.
            value (if (and (fn? value) (::delayed-default (meta value)))
-                   (get kw-name)
+                   (get config-comp kw-name)
                    value)]
        (when-let [r (:required spec)]
          (when (and (if (fn? r) (r) r)
@@ -483,7 +474,7 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
                    kw-name type value)))
          (when-let [verifier (:verifier spec)]
            (verifier kw-name value))))))
-  (when-not silent (report-configuration)))
+  (when-not silent (report-configuration config-comp)))
 
 (defn verify-file-exists
   "Check if file or directory denoted by `file` exists, raise error otherwise."
