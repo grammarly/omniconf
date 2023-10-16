@@ -2,6 +2,7 @@
 
 ### 0.5.0-SNAPSHOT (unreleased)
 
+- **BREAKING:** arities that had `quit-on-error` argument are now removed.
 - **BREAKING:** if the value for `:default` field is a function, it is now by
   default interpreted as a default initializer function. The function
   `(cfg/enable-functions-as-defaults)` is preserved for backwards compatibility
