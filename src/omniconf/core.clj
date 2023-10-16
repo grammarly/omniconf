@@ -8,7 +8,7 @@
 
 (ns omniconf.core
   "Omniconf is an exhaustive configuration tool."
-  (:refer-clojure :exclude [get set *data-readers*])
+  (:refer-clojure :exclude [get set parse-boolean *data-readers*])
   (:require [clojure.core :as clj]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
