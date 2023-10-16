@@ -84,7 +84,7 @@
   (is (= "bar" (cfg/get :string-option)))
   (is (= 42 (cfg/get :integer-option)))
   (is (= '(1 2 3) (cfg/get :edn-option)))
-  (is (= (java.io.File. "build.boot") (cfg/get :file-option)))
+  (is (= (java.io.File. "CHANGELOG.md") (cfg/get :file-option)))
   (is (= (java.io.File. "test/") (cfg/get :directory-option)))
   (is (= 2048 (cfg/get :option-with-default)))
   (is (= :baz (cfg/get :option-from-set)))
@@ -102,7 +102,7 @@
   (#'cfg/fill-default-values)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
-    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "build.boot"
+    "--integer-option" "42" "--edn-option" "^:concat (3)" "--file-option" "CHANGELOG.md"
     "--directory-option" "test" "--option-with-default" "2048"
     "--conditional-option" "dummy" "--option-from-set" "baz"
     "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
@@ -117,7 +117,7 @@
   (System/setProperty "string-option" "bar")
   (System/setProperty "integer-option" "42")
   (System/setProperty "edn-option" "^:concat (3)")
-  (System/setProperty "file-option" "build.boot")
+  (System/setProperty "file-option" "CHANGELOG.md")
   (System/setProperty "directory-option" "test")
   (System/setProperty "option-with-default" "2048")
   (System/setProperty "conditional-option" "dummy")
@@ -141,7 +141,7 @@
                           :string-option "bar"
                           :integer-option 42
                           :edn-option "^:concat (3)"
-                          :file-option "build.boot"
+                          :file-option "CHANGELOG.md"
                           :directory-option "test"
                           :option-with-default 2048
                           :conditional-option "dummy"
@@ -165,7 +165,7 @@
   (#'cfg/fill-default-values)
   (cfg/populate-from-cmd
    ["--required-option" "foo" "--string-option" "bar"
-    "--integer-option" "42" "--file-option" "build.boot"
+    "--integer-option" "42" "--file-option" "CHANGELOG.md"
     "--directory-option" "test" "--option-with-default" "2048"
     "--conditional-option" "dummy" "--option-from-set" "baz"
     "--delayed-option" "10" "--custom-option" "--nested-option.more" "{}"
@@ -205,7 +205,7 @@
   (testing "verify-file-exists"
     (cfg/set :existing-file-option (io/file "nada.clj"))
     (is (thrown? Exception (cfg/verify)))
-    (cfg/set :existing-file-option (io/file "build.boot")))
+    (cfg/set :existing-file-option (io/file "CHANGELOG.md")))
 
   (testing "verify-nonempty-dir"
     (.mkdirs (io/file "target" "_empty_"))

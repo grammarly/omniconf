@@ -2,7 +2,7 @@
  :string-option "bar"
  :integer-option 42
  :edn-option "^:concat (3)"
- :file-option "build.boot"
+ :file-option "CHANGELOG.md"
  :directory-option "test"
  :option-with-default 2048
  :conditional-option "dummy"
