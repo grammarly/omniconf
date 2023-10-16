@@ -33,11 +33,20 @@
         (recur next-token result)
         result))))
 
+(def ^:private unset-string "" "__SSM__UNSET__")
+
+(defn- parse-value [spec value-str]
+  (if (= value-str unset-string)
+    ::unset
+    (#'cfg/parse spec value-str)))
+
 (defn set-value-from-ssm
   "Fetch a single value from Amazon SSM by the given `ssm-key-name` and set it in
   Omniconf by `omniconf-key`."
   [omniconf-key ssm-key-name]
-  (cfg/set omniconf-key (get-parameter ssm-key-name)))
+  (let [key (if (vector? omniconf-key) omniconf-key [omniconf-key])
+        spec (get (#'cfg/flatten-and-transpose-scheme :kw @@#'cfg/config-scheme) key)]
+    (#'cfg/set key (#'cfg/parse spec (get-parameter ssm-key-name)))))
 
 (def ^:private ssm-params-cache (atom {}))
 
@@ -82,13 +91,13 @@
                               :let [full-key (str path (subs ssm-key 2))
                                     value (get relative-kv full-key)]
                               :when (some? value)]
-                          [(:name spec) (#'cfg/parse spec value)])
+                          [(:name spec) (parse-value spec value)])
 
            absolute-kv (params->kv absolute-params)
            absolute-kvs (for [[ssm-key spec] absolute-keys
                               :let [value (get absolute-kv ssm-key)]
                               :when (some? value)]
-                          [(:name spec) (#'cfg/parse spec value)])
+                          [(:name spec) (parse-value spec value)])
 
            values-cnt (+ (count relative-kvs) (count absolute-kvs))]
 
@@ -96,8 +105,8 @@
          (@@#'cfg/logging-fn (format "Populating Omniconf from AWS SSM, path %s: %s value(s)"
                                      path values-cnt)))
 
-       (doseq [[k v] relative-kvs] (cfg/set k v))
-       (doseq [[k v] absolute-kvs] (cfg/set k v))
+       (doseq [[k v] relative-kvs] (if (= v ::unset) (cfg/unset k) (cfg/set k v)))
+       (doseq [[k v] absolute-kvs] (if (= v ::unset) (cfg/unset k) (cfg/set k v)))
 
        (reset! ssm-params-cache new-cache))
      (catch clojure.lang.ExceptionInfo e (#'cfg/log-and-rethrow e)))))
