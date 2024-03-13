@@ -3,6 +3,8 @@
 ### 0.5.0-SNAPSHOT (unreleased)
 
 - Add ability to unset values from SSM.
+- Fixes bug where `populate-from-ssm` would assume node role instead of pod role
+  when running in EKS.
 
 ### 0.4.3 (2021-03-29)
 
