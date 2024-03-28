@@ -30,17 +30,16 @@
   "Function that is called to print debugging information and errors."
   (atom println))
 
-(def ^:private invoke-default-fns? (atom false))
-
 (defn set-logging-fn
   "Change `println` to a custom logging function that Omniconf will use."
   [fn]
   (reset! logging-fn fn))
 
-(defn enable-functions-as-defaults
-  "Allow invoking functions passed to :default field for the options."
+(defn ^:deprecated enable-functions-as-defaults
+  "WARNING: enable-functions-as-defaults is now default, and the function does
+  nothing."
   []
-  (reset! invoke-default-fns? true))
+  (@logging-fn "WARNING: enable-functions-as-defaults is now default and does nothing."))
 
 (defn- running-in-repl?
   "Return true when this function is executed from within the REPL."
@@ -189,7 +188,7 @@
                (doseq [[kw-name spec] coll]
                  (when-some [default (:default spec)]
                    (apply set (conj prefix kw-name
-                                    (if (and (fn? default) @invoke-default-fns?)
+                                    (if (fn? default)
                                       (with-meta default {::delayed-default true})
                                       default))))
                  (when-let [nested (:nested spec)]
@@ -281,21 +280,16 @@
 
 (defn populate-from-env
   "Fill configuration from environment variables. This function must be called
-  only after `define`. If `quit-on-error` is true, immediately quit when program
-  occurs."
-  ([quit-on-error]
-   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-env))
-  ([]
-   (try-log
-    (let [env (System/getenv)
-          kvs (for [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)
-                    :let [value (clj/get env env-name)]
-                    :when value]
-                [(:name spec) (parse spec value)])]
-      (@logging-fn (format "Populating Omniconf from env: %s value(s)" (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([])})
+  only after `define`."
+  []
+  (try-log
+   (let [env (System/getenv)
+         kvs (for [[env-name spec] (flatten-and-transpose-scheme :env @config-scheme)
+                   :let [value (clj/get env env-name)]
+                   :when value]
+               [(:name spec) (parse spec value)])]
+     (@logging-fn (format "Populating Omniconf from env: %s value(s)" (count kvs)))
+     (doseq [[k v] kvs] (set k v)))))
 
 (defn print-cli-help
   "Prints a help message describing all supported command-line arguments."
@@ -316,40 +310,36 @@
                        :else "")
                  (cond (nil? default) nil
                        secret "<SECRET>"
-                       (and (fn? default) @invoke-default-fns?) "<computed>"
+                       (fn? default) "<computed>"
                        :else default)))))
 
 (defn populate-from-cmd
   "Fill configuration from command-line arguments."
-  ([cmd-args quit-on-error]
-   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-cmd cmd-args))
-  ([cmd-args]
-   (try-log
-    (let [grouped-opts
-          (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
-            (cond (= c ::end) (if curr-opt
-                                (conj result [curr-opt true])
-                                result)
-                  (str/starts-with? c "--") (recur r c (if curr-opt
-                                                         (conj result [curr-opt true])
-                                                         result))
-                  curr-opt (recur r nil (conj result [curr-opt c]))
-                  :else (fail "Malformed command-line arguments, key expected, '%s' found."
-                              c)))]
-      (when (clj/get (into {} grouped-opts) "--help")
-        (print-cli-help)
-        (System/exit 0))
+  [cmd-args]
+  (try-log
+   (let [grouped-opts
+         (loop [[c & r] (conj (vec cmd-args) ::end), curr-opt nil, result []]
+           (cond (= c ::end) (if curr-opt
+                               (conj result [curr-opt true])
+                               result)
+                 (str/starts-with? c "--") (recur r c (if curr-opt
+                                                        (conj result [curr-opt true])
+                                                        result))
+                 curr-opt (recur r nil (conj result [curr-opt c]))
+                 :else (fail "Malformed command-line arguments, key expected, '%s' found."
+                             c)))]
+     (when (clj/get (into {} grouped-opts) "--help")
+       (print-cli-help)
+       (System/exit 0))
 
-      (@logging-fn (format "Populating Omniconf from CLI args: %s value(s)"
-                           (count grouped-opts)))
+     (@logging-fn (format "Populating Omniconf from CLI args: %s value(s)"
+                          (count grouped-opts)))
 
-      (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
-        (doseq [[k v] grouped-opts]
-          (if-let [spec (clj/get transposed-scheme k)]
-            (set (:name spec) (parse spec v))
-            (@logging-fn "WARNING: Unrecognized option:" k)))))))
-  {:forms '([cmd-args])})
+     (let [transposed-scheme (flatten-and-transpose-scheme :cmd @config-scheme)]
+       (doseq [[k v] grouped-opts]
+         (if-let [spec (clj/get transposed-scheme k)]
+           (set (:name spec) (parse spec v))
+           (@logging-fn "WARNING: Unrecognized option:" k)))))))
 
 (defn- get-config-kvs-from-map
   "Walks the supplied map and reformats it in the form of config keys to values."
@@ -380,38 +370,30 @@
   *data-readers* nil)
 
 (defn populate-from-file
-  "Fill configuration from an edn file.
-  Any data-reader functions may be optionally set by setting the *data-readers* binding."
-  ([edn-file quit-on-error]
-   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-file edn-file))
-  ([edn-file]
-   (try-log
-    (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
-                       (if *data-readers*
-                         (edn/read {:readers *data-readers*} in)
-                         (edn/read in)))
-          kvs (get-config-kvs-from-map config-map)]
-      (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
-                           edn-file (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([edn-file])})
+  "Fill configuration from an edn file. Any data-reader functions may be
+  optionally set by setting the *data-readers* binding."
+  [edn-file]
+  (try-log
+   (let [config-map (with-open [in (PushbackReader. (io/reader edn-file))]
+                      (if *data-readers*
+                        (edn/read {:readers *data-readers*} in)
+                        (edn/read in)))
+         kvs (get-config-kvs-from-map config-map)]
+     (@logging-fn (format "Populating Omniconf from file %s: %s value(s)"
+                          edn-file (count kvs)))
+     (doseq [[k v] kvs] (set k v)))))
 
 (defn populate-from-properties
   "Fill configuration from Java properties."
-  ([quit-on-error]
-   (@logging-fn "WARNING: quit-on-error arity is deprecated.")
-   (populate-from-properties))
-  ([]
-   (try-log
-    (let [kvs (for [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)
-                    :let [value (System/getProperty prop-name)]
-                    :when value]
-                [(:name spec) (parse spec value)])]
-      (@logging-fn (format "Populating Omniconf from Java properties: %s value(s)"
-                           (count kvs)))
-      (doseq [[k v] kvs] (set k v)))))
-  {:forms '([])})
+  []
+  (try-log
+   (let [kvs (for [[prop-name spec] (flatten-and-transpose-scheme :prop @config-scheme)
+                   :let [value (System/getProperty prop-name)]
+                   :when value]
+               [(:name spec) (parse spec value)])]
+     (@logging-fn (format "Populating Omniconf from Java properties: %s value(s)"
+                          (count kvs)))
+     (doseq [[k v] kvs] (set k v)))))
 
 (defn populate-from-ssm
   "Fill configuration from AWS Systems Manager. Recursively look up all parameters
@@ -466,8 +448,7 @@ Make sure that com.grammarly/omniconf.ssm dependency is present on classpath."))
 
 (defn verify
   "Checks if all the required options are provided, if all values are in range,
-  and prints the configuration. If `:quit-on-error` is set, script will exit if
-  configuration is incorrect. If `:silent` is true, don't print the
+  and prints the configuration. If `:silent` is true, don't print the
   configuration state."
   [& {:keys [silent]}]
   (swap! config-scheme dissoc :help) ;; Not needed anymore.

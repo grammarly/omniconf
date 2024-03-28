@@ -1,4 +1,4 @@
-(ns example-boot.core
+(ns example.core
   (:require [omniconf.core :as cfg])
   (:gen-class))
 
