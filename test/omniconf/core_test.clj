@@ -3,8 +3,6 @@
             [clojure.java.io :as io]
             [clojure.test :refer :all]))
 
-(cfg/enable-functions-as-defaults)
-
 (defn redefine []
   (cfg/define
     {:help {:description "prints this help message"

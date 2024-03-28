@@ -30,17 +30,16 @@
   "Function that is called to print debugging information and errors."
   (atom println))
 
-(def ^:private invoke-default-fns? (atom false))
-
 (defn set-logging-fn
   "Change `println` to a custom logging function that Omniconf will use."
   [fn]
   (reset! logging-fn fn))
 
-(defn enable-functions-as-defaults
-  "Allow invoking functions passed to :default field for the options."
+(defn ^:deprecated enable-functions-as-defaults
+  "WARNING: enable-functions-as-defaults is now default, and the function does
+  nothing."
   []
-  (reset! invoke-default-fns? true))
+  (@logging-fn "WARNING: enable-functions-as-defaults is now default and does nothing."))
 
 (defn- running-in-repl?
   "Return true when this function is executed from within the REPL."
@@ -189,7 +188,7 @@
                (doseq [[kw-name spec] coll]
                  (when-some [default (:default spec)]
                    (apply set (conj prefix kw-name
-                                    (if (and (fn? default) @invoke-default-fns?)
+                                    (if (fn? default)
                                       (with-meta default {::delayed-default true})
                                       default))))
                  (when-let [nested (:nested spec)]
@@ -316,7 +315,7 @@
                        :else "")
                  (cond (nil? default) nil
                        secret "<SECRET>"
-                       (and (fn? default) @invoke-default-fns?) "<computed>"
+                       (fn? default) "<computed>"
                        :else default)))))
 
 (defn populate-from-cmd
