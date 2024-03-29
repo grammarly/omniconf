@@ -8,7 +8,7 @@
 (defmacro opts+ []
   `(let [url# "https://github.com/grammarly/omniconf"]
      (-> {:lib 'com.grammarly/omniconf
-          :version "0.5.0-SNAPSHOT"
+          :version "0.5.0"
           :scm {:url url#}
           :pom-data [[:description "Configuration library for Clojure that favors explicitness"]
                      [:url url#]

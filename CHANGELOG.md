@@ -1,6 +1,6 @@
 # Changelog
 
-### 0.5.0-SNAPSHOT (unreleased)
+### 0.5.0 (2024-03-29)
 
 - **BREAKING:** arities that had `quit-on-error` argument are now removed.
 - **BREAKING:** if the value for `:default` field is a function, it is now by
@@ -8,6 +8,9 @@
   `(cfg/enable-functions-as-defaults)` is preserved for backwards compatibility
   but does nothing now and will be removed in the future version.
 - Add ability to unset values from SSM.
+- [#23](https://github.com/grammarly/omniconf/issues/23) Fix bug where
+  `populate-from-ssm` would assume node role instead of pod role when running in
+  EKS.
 
 ### 0.4.3 (2021-03-29)
 
