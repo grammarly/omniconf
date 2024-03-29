@@ -1,6 +1,6 @@
 # Changelog
 
-### 0.5.0-SNAPSHOT (unreleased)
+### 0.5.0 (2024-03-29)
 
 - **BREAKING:** arities that had `quit-on-error` argument are now removed.
 - **BREAKING:** if the value for `:default` field is a function, it is now by
