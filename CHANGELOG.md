@@ -2,6 +2,11 @@
 
 ### 0.5.0-SNAPSHOT (unreleased)
 
+- **BREAKING:** arities that had `quit-on-error` argument are now removed.
+- **BREAKING:** if the value for `:default` field is a function, it is now by
+  default interpreted as a default initializer function. The function
+  `(cfg/enable-functions-as-defaults)` is preserved for backwards compatibility
+  but does nothing now and will be removed in the future version.
 - Add ability to unset values from SSM.
 
 ### 0.4.3 (2021-03-29)
