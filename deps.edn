@@ -10,6 +10,7 @@
           :ns-aliases {bb org.corfield.build}}
 
   :ssm {:extra-deps {com.amazonaws/aws-java-sdk-core {:mvn/version "1.12.689"}
+                     com.amazonaws/aws-java-sdk-sts {:mvn/version "1.12.689"}
                      com.amazonaws/aws-java-sdk-ssm {:mvn/version "1.12.689"}}}
   :1.10 {:override-deps {org.clojure/clojure {:mvn/version "1.10.3"}}}
   :1.12 {:override-deps {org.clojure/clojure {:mvn/version "1.12.0-alpha9"}}}
