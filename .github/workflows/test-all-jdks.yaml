@@ -5,6 +5,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         docker-image:
           - clojure:temurin-8-jammy
