@@ -21,6 +21,7 @@ jobs:
       - name: Restore Cache
         uses: actions/cache/restore@v4
         with:
+          path: ~/.m2
           key: project-${{ hashFiles('deps.edn') }}
 
       - name: Run Test
