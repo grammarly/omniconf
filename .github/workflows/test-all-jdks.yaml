@@ -18,29 +18,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: debug home dir
-        run: |
-          echo "Home is: $HOME"
-          echo "cd to HOME"
-          cd $HOME
-          pwd
-          ls -la $HOME
-          echo "cd to tilda"
-          cd ~
-          pwd
-          ls -la ~
-
       - name: Restore Cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
-          path: ~/.m2
+          path: /root/.m2 # Explicit path inside the container to overcome GitHub Actions bug https://github.com/actions/runner/issues/1876
           key: project-${{ hashFiles('deps.edn') }}
 
       - name: Run Test
         run: clojure -T:build test :clj '"${{ matrix.clj-version }}"'
 
       - name: Save Cache
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
-          path: ~/.m2
+          path: /root/.m2
           key: project-${{ hashFiles('deps.edn') }}
