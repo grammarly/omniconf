@@ -31,7 +31,7 @@
 (defn test "Run all the tests." [opts]
   (bb/clean opts)
   (bb/run-tests (cond-> (assoc opts :aliases [:ssm])
-                  (:clj opts) (update :aliases into (:clj opts))))
+                  (:clj opts) (update :aliases conj (:clj opts))))
   opts)
 
 (defn- build-jar [opts extra-aliases include-str]
