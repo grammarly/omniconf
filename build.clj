@@ -6,9 +6,11 @@
             [org.corfield.build :as bb]))
 
 (defmacro opts+ []
-  `(let [url# "https://github.com/grammarly/omniconf"]
+  `(let [url# "https://github.com/grammarly/omniconf"
+         version# "0.5.2"]
      (-> {:lib 'com.grammarly/omniconf
-          :version "0.5.0"
+          :version version#
+          :tag version#
           :scm {:url url#}
           :pom-data [[:description "Configuration library for Clojure that favors explicitness"]
                      [:url url#]
@@ -60,7 +62,7 @@
                  (assoc :lib 'com.grammarly/omniconf.ssm)
                  (assoc-in [:pom-data 0 1] "Module for Omniconf to support Amazon SSM as a configuration source"))]
    (bb/clean opts)
-   (build-jar opts [] "omniconf/core.clj")
+   (build-jar opts [:ssm] "omniconf/ssm.clj")
    opts))
 
 (defn deploy "Deploy jars to Clojars." [opts]
