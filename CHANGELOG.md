@@ -1,6 +1,6 @@
 # Changelog
 
-### 0.5.0 (2024-03-29)
+### 0.5.2 (2024-04-02)
 
 - **BREAKING:** arities that had `quit-on-error` argument are now removed.
 - **BREAKING:** if the value for `:default` field is a function, it is now by
@@ -11,6 +11,10 @@
 - [#23](https://github.com/grammarly/omniconf/issues/23) Fix bug where
   `populate-from-ssm` would assume node role instead of pod role when running in
   EKS.
+
+### ~0.5.0, 0.5.1~
+
+Broken SSM module, do not use.
 
 ### 0.4.3 (2021-03-29)
 
